@@ -11,6 +11,10 @@ import { Settings } from './screens/Settings';
 import { CarForm } from './screens/CarForm';
 import { Odometer } from './screens/Odometer';
 import { Login } from './screens/Login';
+import { Workshops } from './screens/Workshops';
+import { WorkshopForm } from './screens/WorkshopForm';
+import { Book } from './screens/Book';
+import { Notifications } from './screens/Notifications';
 
 function RequireAuth() {
   const { session, loading } = useAuth();
@@ -60,6 +64,10 @@ const router = createBrowserRouter(
         { path: '/reminders/:id', element: <ReminderForm /> },
         { path: '/settings/car/:id', element: <CarForm /> },
         { path: '/odometer', element: <Odometer /> },
+        { path: '/workshops', element: <Workshops /> },
+        { path: '/workshops/:id', element: <WorkshopForm /> },
+        { path: '/book', element: <Book /> },
+        { path: '/settings/notifications', element: <Notifications /> },
         { path: '*', element: <Navigate to="/" replace /> },
       ],
     },

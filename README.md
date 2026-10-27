@@ -22,13 +22,27 @@ that transaction, so amounts and dates can never drift apart.
 - Vehicle bills and renewals in the Expense Tracker's recurring payments (road tax, car
   loan) appear under Coming up.
 
+## Reminders, workshops and booking
+
+- Reminders track a job by months, km or both (whichever comes first). A service whose
+  name or items match the reminder's words resets it.
+- Saved workshops: call, WhatsApp, Waze or Google Maps in one tap.
+- Set appointment: pick a workshop and the jobs (due-soon ones are pre-ticked); WhatsApp
+  opens with the message written, in English or BM, asking for a price with labour.
+- Push alerts: `supabase/functions/garage-push` runs daily at 09:05 Malaysia time
+  (cron job `garage-push-alerts`). Each job alerts once when due soon and once when
+  overdue; tapping opens the booking screen. It reuses the Expense Tracker's VAPID keys
+  but keeps its own subscriptions (`garage_push_subscriptions`), turned on per device in
+  Settings → Notifications.
+
 ## Database
 
-`supabase/migrations/20261027000000_garage_module.sql` (already applied):
+`supabase/migrations/` (already applied). Phase 1:
 `garage_vehicles`, `garage_entries`, `garage_entry_items`, `garage_odometer`,
 `garage_reminders`, `garage_settings`, the `garage_costs` and `garage_readings` views,
 three RPCs, a trigger on `transactions`, and a private `garage` storage bucket for car photos.
-All tables have row-level security (owner only).
+Phase 2 adds `garage_workshops`, `garage_push_subscriptions`, `garage_push_log` and
+`garage_due_alerts()`. All tables have row-level security (owner only).
 
 ## Fuel use
 

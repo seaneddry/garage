@@ -287,7 +287,10 @@ function NextService({
           {primary.last_done_on ? `Last done ${longDate(primary.last_done_on)}` : 'Not done yet'}
           {last ? ` · ${rm(last.amount)}` : ''}
         </span>
-        <Link to={`/reminders/${primary.id}`}>Edit</Link>
+        <span className="car-next-links">
+          <Link to={`/reminders/${primary.id}`}>Edit</Link>
+          <Link to={`/book?reminder=${primary.id}`}>Book</Link>
+        </span>
       </div>
     </div>
   );

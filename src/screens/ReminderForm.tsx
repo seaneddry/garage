@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { ErrorNotice, Loading } from '../components/States';
@@ -244,6 +244,11 @@ export function ReminderForm() {
                 {busy ? 'Saving…' : 'Save reminder'}
               </button>
             </div>
+            {id ? (
+              <Link to={`/book?reminder=${id}`} className="button button-secondary button-block">
+                Set appointment
+              </Link>
+            ) : null}
             {id ? (
               <button className="button button-danger button-block" disabled={busy} onClick={() => setConfirm(true)}>
                 Delete reminder

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Cost, EntryInput, EntryItem, ExpenseDue, Reading, Reminder, ReminderInput, Settings, Vehicle, VehicleInput } from './types';
+import type { Cost, EntryInput, EntryItem, ExpenseDue, Reading, Reminder, ReminderInput, Settings, Vehicle, VehicleInput, Workshop, WorkshopInput } from './types';
 
 function fail(error: { message: string } | null): never | void {
   if (error) throw new Error(error.message);
@@ -247,5 +247,40 @@ export async function getSettings(): Promise<Settings | null> {
 
 export async function saveSettings(input: Settings): Promise<void> {
   const { error } = await supabase.from('garage_settings').upsert({ ...input, user_id: await userId() });
+  fail(error);
+}
+
+// ---------------------------------------------------------------- workshops
+const WORKSHOP_COLS = 'id,name,phone,address,notes,favourite';
+
+export async function listWorkshops(): Promise<Workshop[]> {
+  const { data, error } = await supabase
+    .from('garage_workshops')
+    .select(WORKSHOP_COLS)
+    .order('favourite', { ascending: false })
+    .order('name');
+  fail(error);
+  return (data ?? []) as Workshop[];
+}
+
+export async function getWorkshop(id: string): Promise<Workshop | null> {
+  const { data, error } = await supabase.from('garage_workshops').select(WORKSHOP_COLS).eq('id', id).maybeSingle();
+  fail(error);
+  return (data as Workshop) ?? null;
+}
+
+export async function saveWorkshop(id: string | null, input: WorkshopInput): Promise<string> {
+  if (id) {
+    const { error } = await supabase.from('garage_workshops').update(input).eq('id', id);
+    fail(error);
+    return id;
+  }
+  const { data, error } = await supabase.from('garage_workshops').insert(input).select('id').single();
+  fail(error);
+  return data!.id as string;
+}
+
+export async function deleteWorkshop(id: string): Promise<void> {
+  const { error } = await supabase.from('garage_workshops').delete().eq('id', id);
   fail(error);
 }

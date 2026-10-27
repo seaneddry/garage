@@ -64,6 +64,31 @@ export function Settings() {
 
         <section className="group">
           <div className="group-body">
+            <Link to="/workshops" className="row">
+              <span className="row-icon">
+                <Icon name="wrench" size={20} />
+              </span>
+              <span className="row-label">
+                Workshops
+                <span className="row-sub">Call, WhatsApp, Waze, book</span>
+              </span>
+              <Icon name="chevron-right" size={18} />
+            </Link>
+            <Link to="/settings/notifications" className="row">
+              <span className="row-icon">
+                <Icon name="bell" size={20} />
+              </span>
+              <span className="row-label">
+                Notifications
+                <span className="row-sub">Alerts when a car job is due</span>
+              </span>
+              <Icon name="chevron-right" size={18} />
+            </Link>
+          </div>
+        </section>
+
+        <section className="group">
+          <div className="group-body">
             <Link to="/odometer" className="row">
               <span className="row-icon">
                 <Icon name="gauge" size={20} />

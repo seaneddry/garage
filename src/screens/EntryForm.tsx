@@ -5,7 +5,7 @@ import { ConfirmSheet } from '../components/ConfirmSheet';
 import { Icon } from '../components/Icon';
 import { ErrorNotice, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { deleteEntry, getCostByEntry, getCostByTransaction, listEntryItems, listPlaces, listReadings, saveEntry, setExcluded } from '../api';
+import { deleteEntry, getCostByEntry, getCostByTransaction, listEntryItems, listPlaces, listReadings, listWorkshops, saveEntry, setExcluded } from '../api';
 import { errorMessage, useBump, useQuery } from '../lib/useQuery';
 import { useVehicle } from '../lib/vehicle';
 import { parseAmount, rm, todayKL } from '../lib/format';
@@ -47,6 +47,7 @@ export function EntryForm() {
   );
   const items = useQuery<EntryItem[]>(() => (id ? listEntryItems(id) : Promise.resolve([])), [id]);
   const places = useQuery(listPlaces, []);
+  const workshops = useQuery(listWorkshops, []);
 
   const [vehicleId, setVehicleId] = useState(currentVehicle?.id ?? '');
   const readings = useQuery(() => (vehicleId ? listReadings(vehicleId) : Promise.resolve([])), [vehicleId]);
@@ -106,7 +107,10 @@ export function EntryForm() {
   const perLitre = parsed && litresN ? parsed / litresN : null;
   const odoLow = odoN !== null && latest && odoN < latest.km && mode === 'new';
 
-  const placeOptions = kind === 'fuel' ? STATIONS : (places.data ?? []).filter((p) => !STATIONS.includes(p)).slice(0, 8);
+  const placeOptions =
+    kind === 'fuel'
+      ? STATIONS
+      : [...new Set([...(workshops.data ?? []).map((w) => w.name), ...(places.data ?? []).filter((p) => !STATIONS.includes(p))])].slice(0, 8);
 
   function leave() {
     if (window.history.length > 1) navigate(-1);

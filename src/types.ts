@@ -98,3 +98,14 @@ export interface ExpenseDue {
 export interface Settings {
   tracking_from: string;
 }
+
+export interface Workshop {
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  notes: string | null;
+  favourite: boolean;
+}
+
+export type WorkshopInput = Omit<Workshop, 'id'>;

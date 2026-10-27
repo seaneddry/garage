@@ -33,6 +33,8 @@ export default defineConfig({
         // Never cache API calls: the data must always be live.
         navigateFallback: `${base}index.html`,
         globPatterns: ['**/*.{js,css,html,png,svg}'],
+        // Adds the push and notification-tap handlers to the generated service worker.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

@@ -41,6 +41,11 @@ export function Reminders() {
       }
     >
       <main className="page stack">
+        {rows.some(({ r, s }) => r.active && s.state !== 'unset') ? (
+          <Link to="/book" className="button button-whatsapp button-block">
+            Set appointment
+          </Link>
+        ) : null}
         {reminders.error ? <ErrorNotice message={reminders.error} onRetry={reminders.reload} /> : null}
         {!reminders.data && !reminders.error ? <Loading /> : null}
         {reminders.data && rows.length === 0 ? (
