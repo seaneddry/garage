@@ -1,0 +1,606 @@
+/* =============================================================================
+   Garage-only components. Everything else comes from styles.css (shared with the
+   Expense Tracker and My Wardrobe), so the apps look and feel the same.
+   ============================================================================= */
+
+:root {
+  --warn: #b45309;
+  --warn-bg: #fff4e5;
+  --good-bg: #e8f5ec;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --warn: #ffb340;
+    --warn-bg: rgb(255 159 10 / 0.16);
+    --good-bg: rgb(50 215 75 / 0.14);
+  }
+}
+
+.stack-tight {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+.section-title {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.section-head .section-title {
+  padding: 0;
+}
+.section-link {
+  font-size: 15px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 17px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pill-row-flush {
+  padding: 8px 0 0;
+  margin: 0;
+}
+
+.group-header-split {
+  display: flex;
+  justify-content: space-between;
+}
+
+.badge-danger {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  color: var(--danger);
+}
+.badge-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.notice-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.bar > span.is-warn {
+  background: var(--warn);
+}
+
+/* ---------------------------------------------------------------- car card */
+.car-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  background: var(--surface);
+}
+.car-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.car-names {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.car-plate {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ink-2);
+}
+.car-model {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.car-sub {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.gauge {
+  position: relative;
+  flex: none;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gauge svg {
+  width: 104px;
+  height: 104px;
+}
+.gauge circle {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+.gauge-track {
+  stroke: var(--fill);
+}
+.gauge-fill {
+  stroke: var(--accent);
+  transition: stroke-dasharray 500ms var(--ease);
+}
+.gauge-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 104px;
+  height: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.gauge-text strong {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.gauge-text span {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.gauge-caption {
+  margin-top: -4px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.car-photo {
+  display: block;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
+  max-height: 220px;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.16));
+}
+.car-photo-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 150px;
+  border: 1.5px dashed var(--separator);
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.car-photo-empty small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.car-pills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.car-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 22px;
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.car-pill span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+.car-pill strong {
+  font-size: 16px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.car-updated {
+  margin-top: -6px;
+  font-size: 12px;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.car-next {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--separator);
+}
+.car-next-empty,
+.car-next-set {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.car-next-set {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.car-next-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.car-next-title span:first-child {
+  flex: 1;
+}
+.car-next-hint {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.car-next-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.car-next-foot a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.meter-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.meter-top strong {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.needs-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--warn);
+  text-decoration: none;
+}
+.needs-banner span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needs-banner strong {
+  font-size: 15px;
+}
+.needs-banner small {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* -------------------------------------------------------------------- stats */
+.stats-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stats-switch strong {
+  font-size: 17px;
+  font-weight: 650;
+}
+.round-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.round-button:disabled {
+  opacity: 0.35;
+}
+.segmented-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.segmented-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+.segmented-small button {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.delta {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.delta.is-good {
+  color: var(--good);
+}
+.delta.is-bad {
+  color: var(--danger);
+}
+.delta-chip {
+  align-self: flex-end;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  color: var(--accent-fg) !important;
+}
+
+.total-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.total-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.total-amount {
+  margin-top: 4px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.total-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.trend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.trend-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.trend-bars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  height: 130px;
+}
+.trend-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.trend-value {
+  font-size: 10.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.trend-bar {
+  display: block;
+  width: 100%;
+  max-height: 86px;
+  border-radius: 6px;
+  background: var(--ink-3);
+  opacity: 0.55;
+}
+.trend-bar.is-now {
+  background: var(--accent);
+  opacity: 1;
+}
+.trend-month {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.due-days {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.due-days.is-warn {
+  color: var(--warn);
+}
+.due-days.is-over {
+  color: var(--danger);
+}
+
+/* ------------------------------------------------------------------ history */
+.kind-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--fill);
+  color: var(--ink);
+}
+.kind-fuel {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.tx-removed {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.tx-sub .badge {
+  margin-left: 2px;
+}
+
+/* ---------------------------------------------------------------- reminders */
+.reminder-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  color: inherit;
+  text-decoration: none;
+  background: var(--surface);
+}
+.reminder-row + .reminder-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 0.5px;
+  background: var(--separator);
+}
+.reminder-row:active {
+  background: var(--surface-2);
+}
+.reminder-row.is-off {
+  opacity: 0.55;
+}
+.reminder-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reminder-top .tx-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* -------------------------------------------------------------------- forms */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.item-row input {
+  flex: 1;
+  min-width: 0;
+}
+.item-row .item-amount {
+  flex: 0 0 84px;
+  text-align: right;
+}
+.row-button {
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.photo-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.photo-edit img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+}
+.photo-edit-empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 120px;
+  border: 1.5px dashed var(--separator);
+  border-radius: var(--radius);
+  color: var(--ink-3);
+}
+.photo-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Wider screens: Garage card and stats side by side. */
+@media (min-width: 900px) {
+  .car-model {
+    font-size: 30px;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
