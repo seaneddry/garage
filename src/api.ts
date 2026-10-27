@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Cost, EntryInput, EntryItem, ExpenseDue, Reading, Reminder, ReminderInput, Settings, Vehicle, VehicleInput, Workshop, WorkshopInput } from './types';
+import type { Cost, EntryInput, EntryItem, ExpenseDue, Parking, PartLine, Reading, Reminder, ReminderInput, Settings, Trip, TripInput, Vehicle, VehicleInput, Workshop, WorkshopInput } from './types';
 
 function fail(error: { message: string } | null): never | void {
   if (error) throw new Error(error.message);
@@ -240,12 +240,18 @@ export async function listExpenseDues(): Promise<ExpenseDue[]> {
 
 // ----------------------------------------------------------------- settings
 export async function getSettings(): Promise<Settings | null> {
-  const { data, error } = await supabase.from('garage_settings').select('tracking_from').maybeSingle();
+  const { data, error } = await supabase.from('garage_settings').select('tracking_from,claim_rate,shortcut_token').maybeSingle();
   fail(error);
-  return (data as Settings) ?? null;
+  return data ? ({ ...data, claim_rate: num(data.claim_rate) } as Settings) : null;
 }
 
-export async function saveSettings(input: Settings): Promise<void> {
+/** A fresh Shortcuts token. The old one stops working straight away. */
+export async function newShortcutToken(): Promise<void> {
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
+  await saveSettings({ shortcut_token: token });
+}
+
+export async function saveSettings(input: Partial<Settings>): Promise<void> {
   const { error } = await supabase.from('garage_settings').upsert({ ...input, user_id: await userId() });
   fail(error);
 }
@@ -283,4 +289,108 @@ export async function saveWorkshop(id: string | null, input: WorkshopInput): Pro
 export async function deleteWorkshop(id: string): Promise<void> {
   const { error } = await supabase.from('garage_workshops').delete().eq('id', id);
   fail(error);
+}
+
+// -------------------------------------------------------------------- trips
+const TRIP_COLS =
+  'id,vehicle_id,started_at,ended_at,start_odo,end_odo,distance_km,distance_source,purpose,client,notes,start_lat,start_lng,end_lat,end_lng,source';
+
+function toTrip(r: Record<string, unknown>): Trip {
+  return { ...(r as unknown as Trip), distance_km: num(r.distance_km) };
+}
+
+export async function listTrips(vehicleId: string): Promise<Trip[]> {
+  const { data, error } = await supabase
+    .from('garage_trips')
+    .select(TRIP_COLS)
+    .eq('vehicle_id', vehicleId)
+    .order('started_at', { ascending: false })
+    .limit(2000);
+  fail(error);
+  return (data ?? []).map(toTrip);
+}
+
+export async function getTrip(id: string): Promise<Trip | null> {
+  const { data, error } = await supabase.from('garage_trips').select(TRIP_COLS).eq('id', id).maybeSingle();
+  fail(error);
+  return data ? toTrip(data) : null;
+}
+
+export async function saveTrip(id: string | null, input: Partial<TripInput>): Promise<string> {
+  if (id) {
+    const { error } = await supabase.from('garage_trips').update(input).eq('id', id);
+    fail(error);
+    return id;
+  }
+  const { data, error } = await supabase.from('garage_trips').insert({ ...input, source: 'app' }).select('id').single();
+  fail(error);
+  return data!.id as string;
+}
+
+export async function deleteTrip(id: string): Promise<void> {
+  const { error } = await supabase.from('garage_trips').delete().eq('id', id);
+  fail(error);
+}
+
+// ------------------------------------------------------------------ parking
+const PARKING_COLS = 'id,vehicle_id,parked_at,lat,lng,accuracy_m,bay,note,photo_path,source';
+
+export async function listParking(vehicleId: string, limit = 15): Promise<Parking[]> {
+  const { data, error } = await supabase
+    .from('garage_parking')
+    .select(PARKING_COLS)
+    .eq('vehicle_id', vehicleId)
+    .order('parked_at', { ascending: false })
+    .limit(limit);
+  fail(error);
+  return (data ?? []).map((p) => ({ ...(p as Parking), accuracy_m: num(p.accuracy_m) }));
+}
+
+export async function addParking(input: Omit<Parking, 'id' | 'source' | 'parked_at'>): Promise<void> {
+  const { error } = await supabase.from('garage_parking').insert({ ...input, source: 'app' });
+  fail(error);
+}
+
+export async function updateParking(id: string, patch: Partial<Pick<Parking, 'bay' | 'note' | 'photo_path'>>): Promise<void> {
+  const { error } = await supabase.from('garage_parking').update(patch).eq('id', id);
+  fail(error);
+}
+
+export async function deleteParking(p: Parking): Promise<void> {
+  const { error } = await supabase.from('garage_parking').delete().eq('id', p.id);
+  fail(error);
+  if (p.photo_path) await supabase.storage.from('garage').remove([p.photo_path]);
+}
+
+export async function uploadParkingPhoto(blob: Blob): Promise<string> {
+  const path = `${await userId()}/parking/${crypto.randomUUID()}.jpg`;
+  const { error } = await supabase.storage.from('garage').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  fail(error);
+  return path;
+}
+
+// ----------------------------------------------------------- price history
+/** Every invoice line for one car, newest first. */
+export async function listPartLines(vehicleId: string): Promise<PartLine[]> {
+  const { data, error } = await supabase
+    .from('garage_entry_items')
+    .select('name,amount,entry_id,garage_entries!inner(occurred_on,place,odometer_km,vehicle_id,excluded)')
+    .eq('garage_entries.vehicle_id', vehicleId)
+    .eq('garage_entries.excluded', false)
+    .limit(5000);
+  fail(error);
+  return (data ?? [])
+    .map((r) => {
+      const raw = r.garage_entries as unknown;
+      const e = (Array.isArray(raw) ? raw[0] : raw) as { occurred_on: string; place: string | null; odometer_km: number | null };
+      return {
+        name: r.name as string,
+        amount: num(r.amount),
+        entry_id: r.entry_id as string,
+        occurred_on: e.occurred_on,
+        place: e.place,
+        odometer_km: num(e.odometer_km),
+      };
+    })
+    .sort((a, b) => b.occurred_on.localeCompare(a.occurred_on));
 }

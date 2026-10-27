@@ -7,6 +7,7 @@ import { ToastProvider } from './components/Toast';
 import { DataProvider } from './lib/useQuery';
 import './styles.css';
 import './garage.css';
+import './garage-more.css';
 
 registerSW({ immediate: true });
 

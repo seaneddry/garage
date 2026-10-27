@@ -99,6 +99,52 @@ export interface ExpenseDue {
 
 export interface Settings {
   tracking_from: string;
+  claim_rate: number | null;
+  shortcut_token: string | null;
+}
+
+export interface Trip {
+  id: string;
+  vehicle_id: string;
+  started_at: string;
+  ended_at: string | null;
+  start_odo: number | null;
+  end_odo: number | null;
+  distance_km: number | null;
+  distance_source: 'gps' | 'odometer' | 'manual' | null;
+  purpose: 'private' | 'work';
+  client: string | null;
+  notes: string | null;
+  start_lat: number | null;
+  start_lng: number | null;
+  end_lat: number | null;
+  end_lng: number | null;
+  source: 'app' | 'shortcut';
+}
+
+export type TripInput = Omit<Trip, 'id' | 'source'>;
+
+export interface Parking {
+  id: string;
+  vehicle_id: string;
+  parked_at: string;
+  lat: number | null;
+  lng: number | null;
+  accuracy_m: number | null;
+  bay: string | null;
+  note: string | null;
+  photo_path: string | null;
+  source: 'app' | 'shortcut';
+}
+
+/** One invoice line with the record it came from, for price history. */
+export interface PartLine {
+  name: string;
+  amount: number | null;
+  occurred_on: string;
+  place: string | null;
+  odometer_km: number | null;
+  entry_id: string;
 }
 
 export interface Workshop {

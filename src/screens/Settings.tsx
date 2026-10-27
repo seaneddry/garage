@@ -4,24 +4,98 @@ import { Screen } from '../components/Screen';
 import { Icon } from '../components/Icon';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth';
-import { getSettings, saveSettings } from '../api';
+import { getSettings, listCosts, listTrips, saveSettings } from '../api';
 import { errorMessage, useBump, useQuery } from '../lib/useQuery';
 import { useVehicle } from '../lib/vehicle';
-import { todayKL } from '../lib/format';
+import { parseAmount, todayKL } from '../lib/format';
+import { shareOrDownload, toCsv } from '../lib/csv';
+import { KIND_LABEL } from '../lib/kinds';
+import { klDate, minutesBetween } from '../lib/geo';
+import { tripKm } from './Trips';
 
 const EXPENSES_URL = 'https://seaneddry.github.io/expense-tracker/';
 
 export function Settings() {
   const { session, signOut } = useAuth();
-  const { vehicles } = useVehicle();
+  const { vehicles, vehicle } = useVehicle();
   const settings = useQuery(getSettings, []);
   const toast = useToast();
   const bump = useBump();
   const [from, setFrom] = useState('');
+  const [rate, setRate] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    if (settings.data) setFrom(settings.data.tracking_from);
+    if (settings.data) {
+      setFrom(settings.data.tracking_from);
+      setRate(settings.data.claim_rate !== null ? String(settings.data.claim_rate) : '');
+    }
   }, [settings.data]);
+
+  async function saveRate() {
+    const n = rate.trim() === '' ? null : parseAmount(rate);
+    if (rate.trim() !== '' && n === null) return;
+    if (n === (settings.data?.claim_rate ?? null)) return;
+    try {
+      await saveSettings({ claim_rate: n });
+      bump();
+      toast('Claim rate saved');
+    } catch (e) {
+      toast(errorMessage(e));
+    }
+  }
+
+  async function exportCosts() {
+    if (!vehicle) return;
+    setExporting(true);
+    try {
+      const costs = await listCosts(vehicle.id);
+      const rows: (string | number | boolean | null)[][] = [
+        ['Date', 'Type', 'What', 'Place', 'Amount (RM)', 'Odometer (km)', 'Litres', 'Fuel grade', 'Full tank', 'Notes', 'In Expenses'],
+      ];
+      for (const c of [...costs].reverse()) {
+        rows.push([
+          c.occurred_on,
+          KIND_LABEL[c.kind],
+          c.title,
+          c.place,
+          c.amount ?? c.removed_amount,
+          c.odometer_km,
+          c.litres,
+          c.fuel_grade,
+          c.kind === 'fuel' ? (c.full_tank === false ? 'no' : c.full_tank ? 'yes' : '') : '',
+          c.notes,
+          c.cost_removed ? 'deleted there' : 'yes',
+        ]);
+      }
+      const slug = (vehicle.plate || vehicle.model).replace(/\s+/g, '-').toLowerCase();
+      await shareOrDownload(`garage-${slug}-costs.csv`, toCsv(rows));
+    } catch (e) {
+      toast(errorMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function exportTrips() {
+    if (!vehicle) return;
+    setExporting(true);
+    try {
+      const trips = await listTrips(vehicle.id);
+      const rows: (string | number | null)[][] = [
+        ['Date', 'Started', 'Ended', 'Minutes', 'Distance (km)', 'Purpose', 'Client / category', 'Start odometer', 'End odometer', 'Notes'],
+      ];
+      for (const t of [...trips].reverse()) {
+        const d = tripKm(t);
+        rows.push([klDate(t.started_at), t.started_at, t.ended_at, minutesBetween(t.started_at, t.ended_at), d !== null ? d.toFixed(1) : '', t.purpose, t.client, t.start_odo, t.end_odo, t.notes]);
+      }
+      await shareOrDownload('garage-trips.csv', toCsv(rows));
+    } catch (e) {
+      toast(errorMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function saveFrom(value: string) {
     setFrom(value);
@@ -74,6 +148,16 @@ export function Settings() {
               </span>
               <Icon name="chevron-right" size={18} />
             </Link>
+            <Link to="/settings/shortcuts" className="row">
+              <span className="row-icon">
+                <Icon name="link" size={20} />
+              </span>
+              <span className="row-label">
+                Shortcuts & Siri
+                <span className="row-sub">CarPlay trips, parking, "what's due"</span>
+              </span>
+              <Icon name="chevron-right" size={18} />
+            </Link>
             <Link to="/settings/notifications" className="row">
               <span className="row-icon">
                 <Icon name="bell" size={20} />
@@ -103,6 +187,55 @@ export function Settings() {
           </div>
           <div className="group-footer">
             Petrol and service expenses from this date that have no litres or odometer are flagged "Needs details". Older ones still count in your spending.
+          </div>
+        </section>
+
+        <section className="group">
+          <div className="group-header">Trips</div>
+          <div className="group-body">
+            <label className="row-input">
+              <span className="row-label">Claim rate (RM per km)</span>
+              <input inputMode="decimal" placeholder="e.g. 0.60" value={rate} onChange={(e) => setRate(e.target.value)} onBlur={() => void saveRate()} />
+            </label>
+          </div>
+          <div className="group-footer">Used to work out what work trips are worth in the claim report. Use your employer's rate.</div>
+        </section>
+
+        <section className="group">
+          <div className="group-header">Reports & exports</div>
+          <div className="group-body">
+            <Link to="/report" className="row">
+              <span className="row-icon">
+                <Icon name="doc" size={20} />
+              </span>
+              <span className="row-label">
+                Service history report
+                <span className="row-sub">Print or save as PDF, for a buyer or warranty</span>
+              </span>
+              <Icon name="chevron-right" size={18} />
+            </Link>
+            <Link to="/parts" className="row">
+              <span className="row-icon">
+                <Icon name="tag" size={20} />
+              </span>
+              <span className="row-label">
+                Part prices
+                <span className="row-sub">What each part and job cost every time</span>
+              </span>
+              <Icon name="chevron-right" size={18} />
+            </Link>
+            <button className="row row-button" disabled={exporting} onClick={() => void exportCosts()}>
+              <span className="row-icon">
+                <Icon name="download" size={20} />
+              </span>
+              <span className="row-label">Export all costs (CSV)</span>
+            </button>
+            <button className="row row-button" disabled={exporting} onClick={() => void exportTrips()}>
+              <span className="row-icon">
+                <Icon name="download" size={20} />
+              </span>
+              <span className="row-label">Export all trips (CSV)</span>
+            </button>
           </div>
         </section>
 

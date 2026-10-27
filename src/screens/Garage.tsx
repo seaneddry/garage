@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { Icon } from '../components/Icon';
 import { Empty, ErrorNotice, Loading } from '../components/States';
-import { listCosts, listExpenseDues, listReadings, listReminders } from '../api';
+import { listCosts, listExpenseDues, listParking, listReadings, listReminders, listTrips } from '../api';
+import { ago } from '../lib/geo';
 import { useQuery } from '../lib/useQuery';
 import { usePhotoUrl, useVehicle } from '../lib/vehicle';
 import { addMonths, longDate, monthLabel, monthStart, rm, rmShort, todayKL } from '../lib/format';
@@ -119,6 +120,7 @@ function VehicleHome({ vehicle }: { vehicle: Vehicle }) {
             costs={costs.data!}
           />
           <NeedsDetails costs={costs.data!} />
+          <QuickLinks vehicleId={vehicle.id} />
           <Stats costs={costs.data!} readings={readings.data!} intervals={derived.intervals} />
           <ComingUp
             reminders={reminders.data!.filter((r) => r.active && !r.is_primary)}
@@ -572,5 +574,41 @@ function ComingUp({
         })}
       </div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------- quick links
+function QuickLinks({ vehicleId }: { vehicleId: string }) {
+  const parking = useQuery(() => listParking(vehicleId, 1), [vehicleId]);
+  const trips = useQuery(() => listTrips(vehicleId), [vehicleId]);
+  const spot = parking.data?.[0];
+  const recentSpot = spot && Date.now() - Date.parse(spot.parked_at) < 3 * 86400000 ? spot : null;
+  const month = monthStart(todayKL());
+  const open = (trips.data ?? []).find((t) => !t.ended_at && Date.now() - Date.parse(t.started_at) < 86400000);
+  const monthTrips = (trips.data ?? []).filter((t) => t.started_at.slice(0, 7) >= month.slice(0, 7)).length;
+
+  return (
+    <nav className="quick-links" aria-label="More">
+      <Link to="/fuel" className="quick-link">
+        <Icon name="fuel" size={20} />
+        <strong>Fuel</strong>
+        <small>Trends & stations</small>
+      </Link>
+      <Link to="/parking" className={`quick-link ${recentSpot ? 'is-active' : ''}`}>
+        <Icon name="car" size={20} />
+        <strong>Parking</strong>
+        <small>{recentSpot ? `${recentSpot.bay ? `${recentSpot.bay} · ` : ''}${ago(recentSpot.parked_at)}` : 'Save your spot'}</small>
+      </Link>
+      <Link to="/trips" className={`quick-link ${open ? 'is-active' : ''}`}>
+        <Icon name="gauge" size={20} />
+        <strong>Trips</strong>
+        <small>{open ? 'In progress' : monthTrips ? `${monthTrips} this month` : 'Log & claim'}</small>
+      </Link>
+      <Link to="/parts" className="quick-link">
+        <Icon name="tag" size={20} />
+        <strong>Prices</strong>
+        <small>Parts over time</small>
+      </Link>
+    </nav>
   );
 }

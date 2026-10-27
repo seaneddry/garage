@@ -15,6 +15,13 @@ import { Workshops } from './screens/Workshops';
 import { WorkshopForm } from './screens/WorkshopForm';
 import { Book } from './screens/Book';
 import { Notifications } from './screens/Notifications';
+import { Fuel } from './screens/Fuel';
+import { Trips } from './screens/Trips';
+import { TripForm } from './screens/TripForm';
+import { Parking } from './screens/Parking';
+import { Shortcuts } from './screens/Shortcuts';
+import { Report } from './screens/Report';
+import { Parts } from './screens/Parts';
 
 function RequireAuth() {
   const { session, loading } = useAuth();
@@ -68,6 +75,13 @@ const router = createBrowserRouter(
         { path: '/workshops/:id', element: <WorkshopForm /> },
         { path: '/book', element: <Book /> },
         { path: '/settings/notifications', element: <Notifications /> },
+        { path: '/settings/shortcuts', element: <Shortcuts /> },
+        { path: '/fuel', element: <Fuel /> },
+        { path: '/trips', element: <Trips /> },
+        { path: '/trips/:id', element: <TripForm /> },
+        { path: '/parking', element: <Parking /> },
+        { path: '/report', element: <Report /> },
+        { path: '/parts', element: <Parts /> },
         { path: '*', element: <Navigate to="/" replace /> },
       ],
     },

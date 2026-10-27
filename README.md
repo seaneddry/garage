@@ -49,6 +49,26 @@ that transaction, so amounts and dates can never drift apart.
 - On an expense that came from the Expense Tracker, scanning fills only empty fields and
   flags it if the receipt total differs from the expense amount.
 
+## Fuel, trips, parking, reports
+
+- **Fuel** (`/fuel`): last-90-days and usual L/100 km, fuel cost per km, average RM/litre,
+  12-month charts (spend, L/100 km, RM/litre), a station league (each tank's L/100 km is
+  credited to the station that filled it) and every fill-up compared with your usual.
+- **Trips** (`/trips`): start a trip in the app (GPS counts only while it's open), or let
+  iPhone Shortcuts start and end trips when CarPlay/Bluetooth connects and disconnects.
+  Mark trips work or private with a client; monthly claim report as CSV using the claim
+  rate in Settings.
+- **Parking** (`/parking`): "I parked here", bay/level, a photo of the sign, Apple Maps /
+  Google Maps / Waze, share. The CarPlay-disconnect Shortcut saves it automatically.
+- **Shortcuts & Siri** (Settings → Shortcuts): `supabase/functions/garage-shortcut`
+  (no JWT; a per-user token in `garage_settings.shortcut_token`, sent as
+  `x-garage-token`). Actions: `trip-start`, `trip-end`, `park`, `odometer`, `next`
+  (what's due, as a sentence for Siri). Step-by-step setup is in the app.
+- **Service history report** (`/report`): printable, Save as PDF from the print sheet.
+- **Part prices** (`/parts`): every invoice line grouped by name with the change vs the
+  previous time.
+- **Exports**: all costs and all trips as CSV (Settings).
+
 ## Database
 
 `supabase/migrations/` (already applied). Phase 1:
@@ -56,7 +76,8 @@ that transaction, so amounts and dates can never drift apart.
 `garage_reminders`, `garage_settings`, the `garage_costs` and `garage_readings` views,
 three RPCs, a trigger on `transactions`, and a private `garage` storage bucket for car photos.
 Phase 2 adds `garage_workshops`, `garage_push_subscriptions`, `garage_push_log` and
-`garage_due_alerts()`. Phase 3 adds `garage_entries.receipt_path`. All tables have row-level security (owner only).
+`garage_due_alerts()`. Phase 3 adds `garage_entries.receipt_path`. Phases 4–6 add `garage_trips`, `garage_parking`,
+and `garage_settings.shortcut_token` / `claim_rate`. All tables have row-level security (owner only).
 
 ## Fuel use
 

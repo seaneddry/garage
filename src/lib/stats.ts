@@ -5,6 +5,10 @@ export interface FuelInterval {
   end_on: string;
   km: number;
   litres: number;
+  /** Where the tank being measured was filled. */
+  start_place: string | null;
+  /** The fill-up that closed the interval. */
+  end_entry: string | null;
 }
 
 /**
@@ -18,6 +22,7 @@ export function fuelIntervals(costs: Cost[]): FuelInterval[] {
     .sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || (a.odometer_km ?? 0) - (b.odometer_km ?? 0));
   const out: FuelInterval[] = [];
   let startOdo: number | null = null;
+  let startPlace: string | null = null;
   let litres = 0;
   for (const f of fills) {
     if (f.litres === null || f.odometer_km === null) {
@@ -28,11 +33,12 @@ export function fuelIntervals(costs: Cost[]): FuelInterval[] {
     if (startOdo !== null) {
       litres += f.litres;
       if (f.full_tank !== false && f.odometer_km > startOdo) {
-        out.push({ end_on: f.occurred_on, km: f.odometer_km - startOdo, litres });
+        out.push({ end_on: f.occurred_on, km: f.odometer_km - startOdo, litres, start_place: startPlace, end_entry: f.entry_id });
       }
     }
     if (f.full_tank !== false) {
       startOdo = f.odometer_km;
+      startPlace = f.place;
       litres = 0;
     }
   }
