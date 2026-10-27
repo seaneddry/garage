@@ -690,3 +690,103 @@ input.check {
 .book-secondary .button {
   text-decoration: none;
 }
+
+/* ------------------------------------------------------- phase 3: scanning */
+.scan-card {
+  display: flex;
+}
+.scan-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 12px 16px;
+  border: 1.5px dashed var(--separator);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+.scan-button span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scan-button strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.scan-button small {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.scan-button:disabled {
+  opacity: 0.7;
+}
+.spinner-small {
+  width: 20px !important;
+  height: 20px !important;
+  border-width: 2px !important;
+}
+.notice-good {
+  background: var(--good-bg);
+  color: var(--ink);
+}
+.notice-extra {
+  margin-top: 8px;
+  font-size: 14px;
+}
+.link-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+}
+.is-filled {
+  background: var(--good-bg) !important;
+}
+.row-input-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.row-input-action input {
+  flex: 1;
+  min-width: 0;
+}
+.receipt-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.receipt-thumb {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 84px;
+  border-radius: 8px;
+  background: var(--fill);
+  object-fit: cover;
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.receipt-thumb-pdf {
+  gap: 2px;
+  align-content: center;
+}
+.receipt-actions {
+  display: flex;
+  gap: 8px;
+}
+.receipt-actions .button {
+  text-decoration: none;
+}

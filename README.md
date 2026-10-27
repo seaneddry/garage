@@ -35,6 +35,20 @@ that transaction, so amounts and dates can never drift apart.
   but keeps its own subscriptions (`garage_push_subscriptions`), turned on per device in
   Settings → Notifications.
 
+## Receipt scanning
+
+- On the Log screen, **Scan receipt** takes a photo or PDF (fuel receipt, Setel e-receipt,
+  workshop invoice). The phone shrinks photos to about 1600 px and re-encodes them, which
+  also drops location data. `supabase/functions/garage-scan` sends it to Google Gemini (the
+  same `GEMINI_API_KEY` as the Expense Tracker's Ask feature) and returns the date, place,
+  odometer, litres, fuel grade, total and invoice lines. Personal numbers are stripped.
+  Filled fields are highlighted to check before saving; nothing is saved automatically.
+- The camera button on the Odometer row reads the ODO number from a dashboard photo.
+- The receipt is kept with the record in the private `garage` bucket
+  (`<user>/receipts/YYYY-MM/…`) and can be viewed from the record.
+- On an expense that came from the Expense Tracker, scanning fills only empty fields and
+  flags it if the receipt total differs from the expense amount.
+
 ## Database
 
 `supabase/migrations/` (already applied). Phase 1:
@@ -42,7 +56,7 @@ that transaction, so amounts and dates can never drift apart.
 `garage_reminders`, `garage_settings`, the `garage_costs` and `garage_readings` views,
 three RPCs, a trigger on `transactions`, and a private `garage` storage bucket for car photos.
 Phase 2 adds `garage_workshops`, `garage_push_subscriptions`, `garage_push_log` and
-`garage_due_alerts()`. All tables have row-level security (owner only).
+`garage_due_alerts()`. Phase 3 adds `garage_entries.receipt_path`. All tables have row-level security (owner only).
 
 ## Fuel use
 

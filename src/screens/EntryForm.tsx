@@ -12,7 +12,9 @@ import { parseAmount, rm, todayKL } from '../lib/format';
 import { FUEL_GRADES, KINDS, KIND_SHORT, STATIONS } from '../lib/kinds';
 import { latestReading } from '../lib/stats';
 import { km } from '../lib/reminders';
-import type { Cost, EntryItem, EntryKind } from '../types';
+import { foundText, prepareFile, removeReceiptFile, samePlate, scanFile, uploadReceipt } from '../lib/scan';
+import { usePhotoUrl } from '../lib/vehicle';
+import type { Cost, EntryItem, EntryKind, ScanResult } from '../types';
 
 interface ItemDraft {
   key: number;
@@ -69,6 +71,15 @@ export function EntryForm() {
   const [sheet, setSheet] = useState<'delete' | 'exclude' | null>(null);
   const loaded = useRef(false);
   const nextKey = useRef(1);
+  const [receiptPath, setReceiptPath] = useState<string | null>(null);
+  const [filled, setFilled] = useState<Set<string>>(new Set());
+  const [scanning, setScanning] = useState<'receipt' | 'odometer' | null>(null);
+  const [scanInfo, setScanInfo] = useState<{ found: string; total: number | null; plate: string | null } | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const receiptInput = useRef<HTMLInputElement>(null);
+  const odoInput = useRef<HTMLInputElement>(null);
+  const receiptUrl = usePhotoUrl(receiptPath);
+  const uploadedHere = useRef<string[]>([]);
 
   useEffect(() => {
     if (!vehicleId && currentVehicle) setVehicleId(currentVehicle.id);
@@ -95,6 +106,7 @@ export function EntryForm() {
     setFullTank(c.full_tank ?? true);
     setPlace(c.place ?? '');
     setNotes(c.notes ?? '');
+    setReceiptPath(c.receipt_path ?? null);
     setLines((items.data ?? []).map((i) => ({ key: nextKey.current++, name: i.name, amount: i.amount !== null ? String(i.amount) : '' })));
   }, [existing.data, items.data, id, vehicle]);
 
@@ -112,7 +124,80 @@ export function EntryForm() {
       ? STATIONS
       : [...new Set([...(workshops.data ?? []).map((w) => w.name), ...(places.data ?? []).filter((p) => !STATIONS.includes(p))])].slice(0, 8);
 
+  function mark(...keys: string[]) {
+    setFilled((prev) => new Set([...prev, ...keys]));
+  }
+  const fill = (key: string) => (filled.has(key) ? 'is-filled' : '');
+
+  function applyReceipt(r: ScanResult) {
+    // A new record takes everything that was read. Editing or linking keeps the amount and date
+    // from the expense, and only fills what is still empty.
+    const fresh = mode === 'new';
+    const got: string[] = [];
+    if (fresh && r.kind) {
+      setKind(r.kind);
+    }
+    const k = (fresh && r.kind) || kind;
+    if (fresh && r.total !== null && r.total !== undefined) {
+      setAmount(String(r.total));
+      got.push('amount');
+    }
+    if (fresh && r.date) {
+      setDate(r.date);
+      got.push('date');
+    }
+    if (r.place && (fresh || !place)) {
+      setPlace(r.place);
+      got.push('place');
+    }
+    if (r.odometer_km !== null && (fresh || !odometer)) {
+      setOdometer(String(r.odometer_km));
+      got.push('odometer');
+    }
+    if (k === 'fuel') {
+      if (r.litres && (fresh || !litres)) {
+        setLitres(String(r.litres));
+        got.push('litres');
+      }
+      if (r.fuel_grade && (fresh || !grade)) setGrade(r.fuel_grade);
+    } else if (r.items && r.items.length > 0 && (fresh || lines.length === 0)) {
+      setLines(r.items.map((i) => ({ key: nextKey.current++, name: i.name, amount: i.amount !== null ? String(i.amount) : '' })));
+      got.push('items');
+    }
+    mark(...got);
+    setScanInfo({ found: foundText(r.found), total: r.total ?? null, plate: r.plate ?? null });
+  }
+
+  async function onScan(file: File | undefined, what: 'receipt' | 'odometer') {
+    if (!file) return;
+    setScanning(what);
+    setScanError(null);
+    try {
+      const prepared = await prepareFile(file);
+      if (what === 'odometer') {
+        const r = await scanFile(prepared, 'odometer');
+        if (r.odometer_km === null) throw new Error("Couldn't see the odometer. Get the ODO number in the frame and try again.");
+        setOdometer(String(r.odometer_km));
+        mark('odometer');
+      } else {
+        const [r, path] = await Promise.all([scanFile(prepared, 'receipt'), uploadReceipt(prepared).catch(() => null)]);
+        if (path) {
+          uploadedHere.current.push(path);
+          setReceiptPath(path);
+        }
+        applyReceipt(r);
+      }
+    } catch (e) {
+      setScanError(errorMessage(e));
+    } finally {
+      setScanning(null);
+      if (receiptInput.current) receiptInput.current.value = '';
+      if (odoInput.current) odoInput.current.value = '';
+    }
+  }
+
   function leave() {
+    void Promise.all(uploadedHere.current.map(removeReceiptFile));
     if (window.history.length > 1) navigate(-1);
     else navigate('/', { replace: true });
   }
@@ -137,7 +222,13 @@ export function EntryForm() {
         place: place.trim() || null,
         notes: notes.trim() || null,
         items: kind === 'fuel' ? [] : lines.map((l) => ({ name: l.name, amount: parseAmount(l.amount) })),
+        receipt_path: receiptPath,
       });
+      // Receipts uploaded on this screen but then replaced or removed are not kept.
+      const original = existing.data?.receipt_path ?? null;
+      const stale = [...uploadedHere.current, ...(original ? [original] : [])].filter((p) => p !== receiptPath);
+      await Promise.all(stale.map(removeReceiptFile));
+      uploadedHere.current = [];
       bump();
       toast(mode === 'link' ? 'Details added' : mode === 'edit' ? 'Saved' : `Logged ${rm(parsed)} · also in Expenses`);
       navigate(mode === 'new' ? '/' : '/history', { replace: true, viewTransition: true });
@@ -215,6 +306,53 @@ export function EntryForm() {
               </div>
             ) : null}
 
+            <div className="scan-card">
+              <button className="scan-button" disabled={scanning !== null} onClick={() => receiptInput.current?.click()}>
+                {scanning === 'receipt' ? <span className="spinner spinner-small" /> : <Icon name="receipt" size={22} />}
+                <span>
+                  <strong>{scanning === 'receipt' ? 'Reading receipt…' : receiptPath ? 'Scan another receipt' : 'Scan receipt'}</strong>
+                  <small>Photo or PDF · fills the form for you</small>
+                </span>
+              </button>
+              <input
+                ref={receiptInput}
+                type="file"
+                accept="image/*,application/pdf"
+                hidden
+                onChange={(e) => void onScan(e.target.files?.[0], 'receipt')}
+              />
+              <input
+                ref={odoInput}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={(e) => void onScan(e.target.files?.[0], 'odometer')}
+              />
+            </div>
+
+            {scanError ? (
+              <div className="notice notice-error" role="alert">
+                {scanError}
+              </div>
+            ) : null}
+            {scanInfo ? (
+              <div className="notice notice-good" role="status">
+                {scanInfo.found ? <>Read the {scanInfo.found}. Check the highlighted fields before saving.</> : "Couldn't read much from that. Fill in the rest by hand."}
+                {mode !== 'new' && scanInfo.total !== null && parsed !== null && Math.abs(scanInfo.total - parsed) > 0.009 ? (
+                  <div className="notice-extra">
+                    The receipt says {rm(scanInfo.total)}, the expense says {rm(parsed)}.{' '}
+                    <button className="link-button" onClick={() => { setAmount(String(scanInfo.total)); mark('amount'); }}>
+                      Use {rm(scanInfo.total)}
+                    </button>
+                  </div>
+                ) : null}
+                {scanInfo.plate && vehicle?.plate && !samePlate(scanInfo.plate, vehicle.plate) ? (
+                  <div className="notice-extra">This receipt is for {scanInfo.plate}, not {vehicle.plate}. Check the car.</div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="segmented segmented-5" role="group" aria-label="Type">
               {KINDS.map((k) => (
                 <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>
@@ -223,7 +361,7 @@ export function EntryForm() {
               ))}
             </div>
 
-            <div className="amount-field">
+            <div className={`amount-field ${fill('amount')}`}>
               <span className="currency">RM</span>
               <input
                 inputMode="decimal"
@@ -251,22 +389,33 @@ export function EntryForm() {
                   <span className="row-label">{kind === 'fuel' ? 'Name' : 'What'}</span>
                   <input placeholder={TITLE_HINT[kind]} value={title} onChange={(e) => setTitle(e.target.value)} />
                 </label>
-                <label className="row-input">
+                <label className={`row-input ${fill('date')}`}>
                   <span className="row-label">Date</span>
                   <input type="date" value={date} max={todayKL()} onChange={(e) => setDate(e.target.value)} />
                 </label>
-                <label className="row-input">
-                  <span className="row-label">Odometer</span>
+                <div className={`row-input row-input-action ${fill('odometer')}`}>
+                  <label className="row-label" htmlFor="odometer-input">
+                    Odometer
+                  </label>
                   <input
+                    id="odometer-input"
                     inputMode="numeric"
                     placeholder={latest ? `last ${km(latest.km)}` : 'km'}
                     value={odometer}
                     onChange={(e) => setOdometer(e.target.value)}
                   />
-                </label>
+                  <button
+                    className="icon-button"
+                    aria-label="Read odometer from a dashboard photo"
+                    disabled={scanning !== null}
+                    onClick={() => odoInput.current?.click()}
+                  >
+                    {scanning === 'odometer' ? <span className="spinner spinner-small" /> : <Icon name="camera" size={20} />}
+                  </button>
+                </div>
                 {kind === 'fuel' ? (
                   <>
-                    <label className="row-input">
+                    <label className={`row-input ${fill('litres')}`}>
                       <span className="row-label">Litres</span>
                       <input inputMode="decimal" placeholder="0.0" value={litres} onChange={(e) => setLitres(e.target.value)} />
                     </label>
@@ -312,7 +461,7 @@ export function EntryForm() {
                 </div>
               ) : null}
               <div className="group-body">
-                <label className="row-input">
+                <label className={`row-input ${fill('place')}`}>
                   <span className="row-label">{kind === 'fuel' ? 'Station' : 'Workshop'}</span>
                   <input
                     list="place-options"
@@ -332,7 +481,7 @@ export function EntryForm() {
             {kind !== 'fuel' ? (
               <div className="group">
                 <div className="group-header">Items (optional)</div>
-                <div className="group-body">
+                <div className={`group-body ${fill('items')}`}>
                   {lines.map((l, i) => (
                     <div className="row-input item-row" key={l.key}>
                       <input
@@ -360,6 +509,34 @@ export function EntryForm() {
                   </button>
                 </div>
                 <div className="group-footer">Items are for your records. The amount above is what goes to Expenses.</div>
+              </div>
+            ) : null}
+
+            {receiptPath ? (
+              <div className="group">
+                <div className="group-header">Receipt</div>
+                <div className="receipt-card">
+                  {receiptPath.endsWith('.pdf') ? (
+                    <span className="receipt-thumb receipt-thumb-pdf">
+                      <Icon name="doc" size={22} />
+                      PDF
+                    </span>
+                  ) : receiptUrl ? (
+                    <img className="receipt-thumb" src={receiptUrl} alt="Receipt" />
+                  ) : (
+                    <span className="receipt-thumb" />
+                  )}
+                  <div className="receipt-actions">
+                    {receiptUrl ? (
+                      <a className="button button-secondary button-small" href={receiptUrl} target="_blank" rel="noreferrer">
+                        View
+                      </a>
+                    ) : null}
+                    <button className="button button-quiet button-small" onClick={() => setReceiptPath(null)}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : null}
 

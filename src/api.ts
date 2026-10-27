@@ -73,7 +73,7 @@ export async function removeVehiclePhoto(vehicle: Vehicle): Promise<void> {
 
 const photoCache = new Map<string, { url: string; at: number }>();
 
-/** Signed URL for a private car photo, cached for 50 minutes. */
+/** Signed URL for a private file (car photo or receipt), cached for 50 minutes. */
 export async function vehiclePhotoUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
   const hit = photoCache.get(path);
@@ -86,7 +86,7 @@ export async function vehiclePhotoUrl(path: string | null): Promise<string | nul
 
 // -------------------------------------------------------------------- costs
 const COST_COLS =
-  'entry_id,transaction_id,vehicle_id,kind,occurred_on,title,expense_description,amount,removed_amount,odometer_km,litres,fuel_grade,full_tank,place,notes,cost_removed,needs_details,category';
+  'entry_id,transaction_id,vehicle_id,kind,occurred_on,title,expense_description,amount,removed_amount,odometer_km,litres,fuel_grade,full_tank,place,notes,cost_removed,needs_details,category,receipt_path';
 
 function toCost(r: Record<string, unknown>): Cost {
   return {

@@ -121,6 +121,7 @@ export function CostRow({ c }: { c: Cost }) {
     c.place,
     c.odometer_km !== null ? `${km(c.odometer_km)} km` : null,
     c.litres !== null ? `${c.litres.toFixed(1)} L` : null,
+    c.receipt_path ? 'receipt' : null,
   ]
     .filter(Boolean)
     .join(' · ');

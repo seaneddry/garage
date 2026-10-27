@@ -37,6 +37,7 @@ export interface Cost {
   cost_removed: boolean;
   needs_details: boolean;
   category: string | null;
+  receipt_path: string | null;
 }
 
 export interface Reading {
@@ -66,6 +67,7 @@ export interface EntryInput {
   place: string | null;
   notes: string | null;
   items: EntryItem[];
+  receipt_path?: string | null;
 }
 
 export interface Reminder {
@@ -109,3 +111,18 @@ export interface Workshop {
 }
 
 export type WorkshopInput = Omit<Workshop, 'id'>;
+
+/** What the scanner read from a receipt or dashboard photo. Null means not found. */
+export interface ScanResult {
+  kind?: EntryKind | null;
+  date?: string | null;
+  place?: string | null;
+  plate?: string | null;
+  odometer_km: number | null;
+  litres?: number | null;
+  price_per_litre?: number | null;
+  fuel_grade?: string | null;
+  total?: number | null;
+  items?: EntryItem[];
+  found: string[];
+}
