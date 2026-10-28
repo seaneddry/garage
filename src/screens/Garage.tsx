@@ -162,7 +162,7 @@ function CarCard({
 }: {
   vehicle: Vehicle;
   intervals: FuelInterval[];
-  latest: { km: number; on: string } | null;
+  latest: { km: number; on: string; estimated: boolean } | null;
   primary: Reminder | null;
   kmPerDay: number | null;
   costs: Cost[];
