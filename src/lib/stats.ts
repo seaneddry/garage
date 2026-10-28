@@ -59,10 +59,13 @@ export function readingOn(readings: Reading[], date: string): number | null {
   return best;
 }
 
-export function latestReading(readings: Reading[]): { km: number; on: string } | null {
+/** The highest reading. On a tie a real reading beats a GPS estimate. */
+export function latestReading(readings: Reading[]): { km: number; on: string; estimated: boolean } | null {
   let best: Reading | null = null;
-  for (const r of readings) if (!best || r.km > best.km) best = r;
-  return best ? { km: best.km, on: best.read_on } : null;
+  for (const r of readings) {
+    if (!best || r.km > best.km || (r.km === best.km && best.source === 'estimate' && r.source !== 'estimate')) best = r;
+  }
+  return best ? { km: best.km, on: best.read_on, estimated: best.source === 'estimate' } : null;
 }
 
 export type Period = { from: string; to: string }; // to is exclusive

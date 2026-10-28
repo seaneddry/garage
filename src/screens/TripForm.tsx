@@ -4,7 +4,8 @@ import { Screen } from '../components/Screen';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { ErrorNotice, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { deleteTrip, getTrip, saveTrip } from '../api';
+import { deleteTrip, getTrip, listReadings, saveTrip } from '../api';
+import { latestReading } from '../lib/stats';
 import { errorMessage, useBump, useQuery } from '../lib/useQuery';
 import { useVehicle } from '../lib/vehicle';
 import { mapLinks } from '../lib/geo';
@@ -34,6 +35,7 @@ export function TripForm() {
   const bump = useBump();
   const { vehicle } = useVehicle();
   const existing = useQuery(() => (isNew ? Promise.resolve(null) : getTrip(id!)), [id]);
+  const readings = useQuery(() => (isNew && vehicle ? listReadings(vehicle.id) : Promise.resolve([])), [isNew, vehicle?.id]);
 
   const [started, setStarted] = useState(toLocalInput(new Date().toISOString()));
   const [ended, setEnded] = useState('');
@@ -61,6 +63,15 @@ export function TripForm() {
     setEndOdo(t.end_odo !== null ? String(t.end_odo) : '');
     setNotes(t.notes ?? '');
   }, [existing.data]);
+
+  // A new trip starts from the latest odometer Garage knows, like trips started by CarPlay.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!isNew || prefilled.current || !readings.data) return;
+    prefilled.current = true;
+    const latest = latestReading(readings.data);
+    if (latest) setStartOdo((v) => v || String(latest.km));
+  }, [isNew, readings.data]);
 
   const s = int(startOdo);
   const e = int(endOdo);
@@ -185,7 +196,8 @@ export function TripForm() {
               <div className="group-footer">
                 {t?.distance_source === 'gps' ? 'Measured by GPS while Garage was open. ' : ''}
                 {t?.source === 'shortcut' && t.distance_km === null ? 'CarPlay trips record the time and place; add the km or both odometer readings. ' : ''}
-                Fill in either the distance or both odometer readings.
+                Fill in either the distance or both odometer readings. The end odometer also updates the odometer on your Garage card.
+                {s !== null && e !== null && e < s ? <strong className="is-bad-text"> The end odometer is lower than the start.</strong> : null}
               </div>
             </div>
 

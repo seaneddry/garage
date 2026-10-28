@@ -44,7 +44,8 @@ export interface Reading {
   vehicle_id: string;
   read_on: string;
   km: number;
-  source: 'entry' | 'manual';
+  /** entry: a fill-up or service · manual: typed in · trip: a trip's end odometer · estimate: trip start + GPS distance */
+  source: 'entry' | 'manual' | 'trip' | 'estimate';
 }
 
 export interface EntryItem {

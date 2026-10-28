@@ -198,14 +198,18 @@ function CarCard({
       <div className="car-pills">
         <Link to="/odometer" className="car-pill">
           <span>ODO</span>
-          <strong className="num">{latest ? `${km(latest.km)} km` : 'Add'}</strong>
+          <strong className="num">{latest ? `${latest.estimated ? '≈ ' : ''}${km(latest.km)} km` : 'Add'}</strong>
         </Link>
         <div className="car-pill">
           <span>AVG</span>
           <strong className="num">{lifetime !== null ? `${lifetime.toFixed(1)} L/100` : '—'}</strong>
         </div>
       </div>
-      {latest ? <div className="car-updated">Odometer as of {longDate(latest.on)}</div> : null}
+      {latest ? (
+        <div className="car-updated">
+          {latest.estimated ? `Estimated from a GPS trip, ${longDate(latest.on)} · tap ODO to correct` : `Odometer as of ${longDate(latest.on)}`}
+        </div>
+      ) : null}
 
       <NextService primary={primary} currentKm={latest?.km ?? null} kmPerDay={kmPerDay} costs={costs} />
     </section>

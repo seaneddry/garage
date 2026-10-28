@@ -97,7 +97,9 @@ export function Odometer() {
                 <div className="row" key={`${r.read_on}-${r.km}-${i}`}>
                   <span className="row-label">{longDate(r.read_on)}</span>
                   <span className="row-value num">
-                    {km(r.km)} km{r.source === 'entry' ? ' · log' : ''}
+                    {r.source === 'estimate' ? '≈ ' : ''}
+                    {km(r.km)} km
+                    {r.source === 'entry' ? ' · log' : r.source === 'trip' ? ' · trip' : r.source === 'estimate' ? ' · GPS estimate' : ''}
                   </span>
                 </div>
               ))}

@@ -58,6 +58,10 @@ that transaction, so amounts and dates can never drift apart.
   iPhone Shortcuts start and end trips when CarPlay/Bluetooth connects and disconnects.
   Mark trips work or private with a client; monthly claim report as CSV using the claim
   rate in Settings.
+- **Trips feed the odometer**: a new trip starts from the latest reading; a trip's end
+  odometer counts as a reading; a trip with a start odometer and GPS distance but no end
+  odometer gives an estimated reading (shown with ≈), replaced as soon as a real reading is
+  entered after the trip.
 - **Parking** (`/parking`): "I parked here", bay/level, a photo of the sign, Apple Maps /
   Google Maps / Waze, share. The CarPlay-disconnect Shortcut saves it automatically.
 - **Shortcuts & Siri** (Settings → Shortcuts): `supabase/functions/garage-shortcut`
