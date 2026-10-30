@@ -240,7 +240,7 @@ export async function listExpenseDues(): Promise<ExpenseDue[]> {
 
 // ----------------------------------------------------------------- settings
 export async function getSettings(): Promise<Settings | null> {
-  const { data, error } = await supabase.from('garage_settings').select('tracking_from,claim_rate,shortcut_token').maybeSingle();
+  const { data, error } = await supabase.from('garage_settings').select('tracking_from,claim_rate,shortcut_token,office_label,office_lat,office_lng').maybeSingle();
   fail(error);
   return data ? ({ ...data, claim_rate: num(data.claim_rate) } as Settings) : null;
 }
@@ -293,10 +293,10 @@ export async function deleteWorkshop(id: string): Promise<void> {
 
 // -------------------------------------------------------------------- trips
 const TRIP_COLS =
-  'id,vehicle_id,started_at,ended_at,start_odo,end_odo,distance_km,distance_source,purpose,client,notes,start_lat,start_lng,end_lat,end_lng,source';
+  'id,vehicle_id,started_at,ended_at,start_odo,end_odo,distance_km,distance_source,purpose,client,notes,start_lat,start_lng,end_lat,end_lng,source,dest_label,dest_lat,dest_lng,office_km,claim_return,claim_km,claim_source';
 
 function toTrip(r: Record<string, unknown>): Trip {
-  return { ...(r as unknown as Trip), distance_km: num(r.distance_km) };
+  return { ...(r as unknown as Trip), distance_km: num(r.distance_km), office_km: num(r.office_km), claim_km: num(r.claim_km) };
 }
 
 export async function listTrips(vehicleId: string): Promise<Trip[]> {

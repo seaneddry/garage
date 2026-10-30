@@ -102,6 +102,9 @@ export interface Settings {
   tracking_from: string;
   claim_rate: number | null;
   shortcut_token: string | null;
+  office_label: string | null;
+  office_lat: number | null;
+  office_lng: number | null;
 }
 
 export interface Trip {
@@ -121,6 +124,15 @@ export interface Trip {
   end_lat: number | null;
   end_lng: number | null;
   source: 'app' | 'shortcut';
+  dest_label: string | null;
+  dest_lat: number | null;
+  dest_lng: number | null;
+  /** One way, office to destination, by road. */
+  office_km: number | null;
+  claim_return: boolean;
+  /** What goes on the claim; null until worked out. */
+  claim_km: number | null;
+  claim_source: 'office' | 'manual' | null;
 }
 
 export type TripInput = Omit<Trip, 'id' | 'source'>;

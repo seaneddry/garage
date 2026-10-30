@@ -19,6 +19,7 @@ import { Fuel } from './screens/Fuel';
 import { Trips } from './screens/Trips';
 import { TripForm } from './screens/TripForm';
 import { Parking } from './screens/Parking';
+import { Office } from './screens/Office';
 import { Shortcuts } from './screens/Shortcuts';
 import { Report } from './screens/Report';
 import { Parts } from './screens/Parts';
@@ -76,6 +77,7 @@ const router = createBrowserRouter(
         { path: '/book', element: <Book /> },
         { path: '/settings/notifications', element: <Notifications /> },
         { path: '/settings/shortcuts', element: <Shortcuts /> },
+        { path: '/settings/office', element: <Office /> },
         { path: '/fuel', element: <Fuel /> },
         { path: '/trips', element: <Trips /> },
         { path: '/trips/:id', element: <TripForm /> },

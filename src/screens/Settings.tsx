@@ -11,7 +11,8 @@ import { parseAmount, todayKL } from '../lib/format';
 import { shareOrDownload, toCsv } from '../lib/csv';
 import { KIND_LABEL } from '../lib/kinds';
 import { klDate, minutesBetween } from '../lib/geo';
-import { tripKm } from './Trips';
+import { tripKm } from '../lib/trips';
+import { claimKm, officeOf } from '../lib/places';
 
 const EXPENSES_URL = 'https://seaneddry.github.io/expense-tracker/';
 
@@ -24,6 +25,7 @@ export function Settings() {
   const [from, setFrom] = useState('');
   const [rate, setRate] = useState('');
   const [exporting, setExporting] = useState(false);
+  const office = officeOf(settings.data);
 
   useEffect(() => {
     if (settings.data) {
@@ -83,11 +85,12 @@ export function Settings() {
     try {
       const trips = await listTrips(vehicle.id);
       const rows: (string | number | null)[][] = [
-        ['Date', 'Started', 'Ended', 'Minutes', 'Distance (km)', 'Purpose', 'Client / category', 'Start odometer', 'End odometer', 'Notes'],
+        ['Date', 'Started', 'Ended', 'Minutes', 'Distance driven (km)', 'Purpose', 'Client / category', 'Destination', 'Claim (km)', 'Start odometer', 'End odometer', 'Notes'],
       ];
       for (const t of [...trips].reverse()) {
         const d = tripKm(t);
-        rows.push([klDate(t.started_at), t.started_at, t.ended_at, minutesBetween(t.started_at, t.ended_at), d !== null ? d.toFixed(1) : '', t.purpose, t.client, t.start_odo, t.end_odo, t.notes]);
+        const c = claimKm(t);
+        rows.push([klDate(t.started_at), t.started_at, t.ended_at, minutesBetween(t.started_at, t.ended_at), d !== null ? d.toFixed(1) : '', t.purpose, t.client, t.dest_label, c !== null ? c.toFixed(1) : '', t.start_odo, t.end_odo, t.notes]);
       }
       await shareOrDownload('garage-trips.csv', toCsv(rows));
     } catch (e) {
@@ -193,12 +196,22 @@ export function Settings() {
         <section className="group">
           <div className="group-header">Trips</div>
           <div className="group-body">
+            <Link to="/settings/office" className="row">
+              <span className="row-icon">
+                <Icon name="flag" size={20} />
+              </span>
+              <span className="row-label">
+                Office
+                <span className="row-sub">{office ? office.label : 'Not set: work trips claim the km you drove'}</span>
+              </span>
+              <Icon name="chevron-right" size={18} />
+            </Link>
             <label className="row-input">
               <span className="row-label">Claim rate (RM per km)</span>
               <input inputMode="decimal" placeholder="e.g. 0.60" value={rate} onChange={(e) => setRate(e.target.value)} onBlur={() => void saveRate()} />
             </label>
           </div>
-          <div className="group-footer">Used to work out what work trips are worth in the claim report. Use your employer's rate.</div>
+          <div className="group-footer">Work trips claim the road distance between your office and where you went, at your employer's rate.</div>
         </section>
 
         <section className="group">

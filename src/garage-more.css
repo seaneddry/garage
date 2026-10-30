@@ -421,3 +421,22 @@ button.action-chip {
     margin: 14mm;
   }
 }
+
+/* ------------------------------------------------ office & work-trip claims */
+.place-picker {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.place-picker .search-field {
+  height: 44px;
+  border-radius: 14px;
+}
+.place-picker .row[disabled] {
+  opacity: 0.6;
+}
+.tx-amount .tx-sub {
+  display: block;
+  text-align: right;
+  font-weight: 400;
+}

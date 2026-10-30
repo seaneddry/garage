@@ -11,6 +11,8 @@ import { addMonths, monthLabel, monthStart, rm, todayKL } from '../lib/format';
 import { latestReading, monthPeriod } from '../lib/stats';
 import { currentFix, klDate, minutesBetween, timeLabel, watchDistance } from '../lib/geo';
 import { shareOrDownload, toCsv } from '../lib/csv';
+import { tripKm } from '../lib/trips';
+import { claimKm, officeClaim, officeOf, tripDestination } from '../lib/places';
 import type { Trip } from '../types';
 
 const LIVE_KEY = 'garage.liveTrip';
@@ -39,11 +41,6 @@ function writeLive(v: Live | null) {
   }
 }
 
-export function tripKm(t: Trip): number | null {
-  if (t.distance_km !== null) return t.distance_km;
-  if (t.start_odo !== null && t.end_odo !== null && t.end_odo > t.start_odo) return t.end_odo - t.start_odo;
-  return null;
-}
 
 export function Trips() {
   const navigate = useNavigate();
@@ -148,17 +145,42 @@ export function Trips() {
   );
   const totalKm = inMonth.reduce((s, t) => s + (tripKm(t) ?? 0), 0);
   const work = inMonth.filter((t) => t.purpose === 'work');
-  const workKm = work.reduce((s, t) => s + (tripKm(t) ?? 0), 0);
+  const workKm = work.reduce((s, t) => s + (claimKm(t) ?? 0), 0);
   const rate = settings.data?.claim_rate ?? null;
-  const missingKm = work.filter((t) => tripKm(t) === null).length;
+  const missingKm = work.filter((t) => claimKm(t) === null).length;
+  const office = officeOf(settings.data);
+  // Work trips whose claim can be measured from the office but hasn't been yet.
+  const toMeasure = office ? work.filter((t) => t.claim_km === null && tripDestination(t, office)) : [];
+  const [measuring, setMeasuring] = useState(false);
+
+  async function measureAll() {
+    if (!office) return;
+    setMeasuring(true);
+    let done = 0;
+    try {
+      for (const t of toMeasure) {
+        const dest = tripDestination(t, office)!;
+        await saveTrip(t.id, await officeClaim(office, dest, t.dest_label, t.claim_return));
+        done++;
+      }
+      toast(`Measured ${done} trip${done === 1 ? '' : 's'} from the office`);
+    } catch (e) {
+      toast(done ? `Measured ${done}, then: ${errorMessage(e)}` : errorMessage(e));
+    } finally {
+      setMeasuring(false);
+      bump();
+      trips.reload();
+    }
+  }
   const atEnd = month >= monthStart(todayKL());
 
   async function exportMonth() {
     const rows: (string | number | null)[][] = [
-      ['Date', 'Start', 'End', 'Minutes', 'Distance (km)', 'Distance from', 'Purpose', 'Client / category', 'Start odometer', 'End odometer', `Claim (RM${rate !== null ? ` @ ${rate}/km` : ''})`, 'Notes'],
+      ['Date', 'Start', 'End', 'Minutes', 'Distance driven (km)', 'Distance from', 'Purpose', 'Client / category', 'Destination', 'Claim (km)', 'Claim measured', 'Start odometer', 'End odometer', `Claim (RM${rate !== null ? ` @ ${rate}/km` : ''})`, 'Notes'],
     ];
     for (const t of [...inMonth].reverse()) {
       const d = tripKm(t);
+      const c = claimKm(t);
       rows.push([
         klDate(t.started_at),
         timeLabel(t.started_at),
@@ -168,14 +190,17 @@ export function Trips() {
         t.distance_source ?? (t.start_odo !== null && t.end_odo !== null ? 'odometer' : ''),
         t.purpose,
         t.client,
+        t.dest_label,
+        c !== null ? c.toFixed(1) : '',
+        t.purpose !== 'work' ? '' : t.claim_source === 'office' ? `from ${office?.label ?? 'office'}${t.claim_return ? ', return' : ', one way'}` : t.claim_source === 'manual' ? 'by hand' : 'distance driven',
         t.start_odo,
         t.end_odo,
-        t.purpose === 'work' && rate !== null && d !== null ? (d * rate).toFixed(2) : '',
+        t.purpose === 'work' && rate !== null && c !== null ? (c * rate).toFixed(2) : '',
         t.notes,
       ]);
     }
     rows.push([]);
-    rows.push(['Work total', '', '', '', workKm.toFixed(1), '', '', '', '', '', rate !== null ? (workKm * rate).toFixed(2) : '', '']);
+    rows.push(['Work total', '', '', '', '', '', '', '', '', workKm.toFixed(1), '', '', '', rate !== null ? (workKm * rate).toFixed(2) : '', '']);
     await shareOrDownload(`trips-${month.slice(0, 7)}.csv`, toCsv(rows));
   }
 
@@ -254,9 +279,19 @@ export function Trips() {
             </div>
           </div>
         </div>
+        {work.length > 0 && !office ? (
+          <div className="notice">
+            Work trips claim the km you drove. <Link to="/settings/office">Set your office</Link> to claim office ↔ destination instead.
+          </div>
+        ) : null}
+        {toMeasure.length > 0 ? (
+          <button className="button button-secondary button-block" disabled={measuring} onClick={() => void measureAll()}>
+            {measuring ? 'Measuring…' : `Measure ${toMeasure.length} work trip${toMeasure.length === 1 ? '' : 's'} from office`}
+          </button>
+        ) : null}
         {missingKm > 0 ? (
           <div className="notice notice-warn">
-            {missingKm} work trip{missingKm === 1 ? ' has' : 's have'} no distance. Open {missingKm === 1 ? 'it' : 'them'} and add the km or odometer.
+            {missingKm} work trip{missingKm === 1 ? ' has' : 's have'} no claim distance. Open {missingKm === 1 ? 'it' : 'them'} and pick the destination or add the km.
           </div>
         ) : null}
 
@@ -270,7 +305,7 @@ export function Trips() {
           <section className="group">
             <div className="group-body">
               {inMonth.map((t) => {
-                const d = tripKm(t);
+                const d = t.purpose === 'work' ? claimKm(t) : tripKm(t);
                 const mins = minutesBetween(t.started_at, t.ended_at);
                 return (
                   <Link to={`/trips/${t.id}`} className="tx-row" key={t.id}>
@@ -280,12 +315,18 @@ export function Trips() {
                         {t.purpose === 'work' ? <span className="badge">Work{t.client ? ` · ${t.client}` : ''}</span> : null}
                       </span>
                       <span className="tx-sub">
-                        {[t.ended_at ? (mins !== null ? `${mins} min` : null) : 'in progress', t.source === 'shortcut' ? 'CarPlay' : t.distance_source === 'gps' ? 'GPS' : null]
+                        {[
+                          t.purpose === 'work' && t.dest_label ? `→ ${t.dest_label}` : null,
+                          t.ended_at ? (mins !== null ? `${mins} min` : null) : 'in progress',
+                          t.source === 'shortcut' ? 'CarPlay' : t.distance_source === 'gps' ? 'GPS' : null]
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
                     </span>
-                    <span className="tx-amount num">{d !== null ? `${d.toFixed(1)} km` : <span className="tx-removed">add km</span>}</span>
+                    <span className="tx-amount num">
+                      {d !== null ? `${d.toFixed(1)} km` : <span className="tx-removed">add km</span>}
+                      {t.purpose === 'work' && t.claim_km !== null ? <span className="tx-sub">claim</span> : null}
+                    </span>
                   </Link>
                 );
               })}

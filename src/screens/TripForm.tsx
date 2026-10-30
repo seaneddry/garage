@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { ErrorNotice, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { deleteTrip, getTrip, listReadings, saveTrip } from '../api';
+import { deleteTrip, getSettings, getTrip, listReadings, saveTrip } from '../api';
+import { PlacePicker } from '../components/PlacePicker';
+import { Icon } from '../components/Icon';
+import { officeOf, placeName, roadKm, tripDestination, type Pt } from '../lib/places';
+import { tripKm } from '../lib/trips';
 import { latestReading } from '../lib/stats';
 import { errorMessage, useBump, useQuery } from '../lib/useQuery';
 import { useVehicle } from '../lib/vehicle';
@@ -45,6 +49,17 @@ export function TripForm() {
   const [startOdo, setStartOdo] = useState('');
   const [endOdo, setEndOdo] = useState('');
   const [notes, setNotes] = useState('');
+  // Work claim: office <-> destination
+  const settings = useQuery(getSettings, []);
+  const office = officeOf(settings.data);
+  const [dest, setDest] = useState<(Pt & { label: string | null }) | null>(null);
+  const [officeKm, setOfficeKm] = useState<number | null>(null);
+  const [roundTrip, setRoundTrip] = useState(false);
+  const [claimText, setClaimText] = useState('');
+  const [picking, setPicking] = useState(false);
+  const [measuring, setMeasuring] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const autoMeasured = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -62,7 +77,41 @@ export function TripForm() {
     setStartOdo(t.start_odo !== null ? String(t.start_odo) : '');
     setEndOdo(t.end_odo !== null ? String(t.end_odo) : '');
     setNotes(t.notes ?? '');
+    if (t.dest_lat !== null && t.dest_lng !== null) setDest({ lat: t.dest_lat, lng: t.dest_lng, label: t.dest_label });
+    setOfficeKm(t.office_km);
+    setRoundTrip(t.claim_return);
+    setClaimText(t.claim_source === 'manual' && t.claim_km !== null ? String(t.claim_km) : '');
   }, [existing.data]);
+
+  async function measure(to: Pt & { label: string | null }) {
+    setDest(to);
+    setPicking(false);
+    setClaimError(null);
+    if (!office) return;
+    setMeasuring(true);
+    try {
+      setOfficeKm(await roadKm(office, to));
+    } catch (err) {
+      setOfficeKm(null);
+      setClaimError(errorMessage(err));
+    } finally {
+      setMeasuring(false);
+    }
+  }
+
+  // A work trip with GPS ends: measure from the office to the far end straight away.
+  useEffect(() => {
+    const t = existing.data;
+    if (purpose !== 'work' || !office || !t || dest || autoMeasured.current) return;
+    const far = tripDestination(t, office);
+    if (!far) return;
+    autoMeasured.current = true;
+    void (async () => {
+      const label = await placeName(far).catch(() => null);
+      await measure({ ...far, label });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purpose, office?.lat, office?.lng, existing.data, dest]);
 
   // A new trip starts from the latest odometer Garage knows, like trips started by CarPlay.
   const prefilled = useRef(false);
@@ -77,7 +126,9 @@ export function TripForm() {
   const e = int(endOdo);
   const fromOdo = s !== null && e !== null && e > s ? e - s : null;
   const distN = distance.trim() === '' ? null : Number(distance);
-  const valid = Boolean(started) && (distN === null || (Number.isFinite(distN) && distN >= 0)) && Boolean(vehicle);
+  const claimTyped = claimText.trim() === '' ? null : Number(claimText);
+  const fromOffice = officeKm !== null ? Math.round(officeKm * (roundTrip ? 2 : 1) * 10) / 10 : null;
+  const valid = (claimTyped === null || (Number.isFinite(claimTyped) && claimTyped >= 0)) && Boolean(started) && (distN === null || (Number.isFinite(distN) && distN >= 0)) && Boolean(vehicle);
 
   async function save() {
     if (!valid || !vehicle) return;
@@ -100,6 +151,13 @@ export function TripForm() {
         start_odo: s,
         end_odo: e,
         notes: notes.trim() || null,
+        dest_label: dest?.label ?? null,
+        dest_lat: dest?.lat ?? null,
+        dest_lng: dest?.lng ?? null,
+        office_km: dest ? officeKm : null,
+        claim_return: roundTrip,
+        claim_km: claimTyped ?? (dest ? fromOffice : null),
+        claim_source: claimTyped !== null ? 'manual' : dest && fromOffice !== null ? 'office' : null,
       });
       bump();
       toast('Saved');
@@ -177,11 +235,75 @@ export function TripForm() {
               </div>
             </div>
 
+            {purpose === 'work' ? (
+              <div className="group">
+                <div className="group-header">Claim</div>
+                <div className="group-body">
+                  <button className="row" onClick={() => setPicking((v) => !v)}>
+                    <span className="row-label">
+                      Destination
+                      <span className="row-sub">{dest ? dest.label ?? `${dest.lat.toFixed(5)}, ${dest.lng.toFixed(5)}` : 'Where the work was'}</span>
+                    </span>
+                    <span className="row-value">{measuring ? 'Measuring…' : officeKm !== null && dest ? `${officeKm.toFixed(1)} km` : picking ? 'Close' : dest ? '' : 'Pick'}</span>
+                    <Icon name="chevron-right" size={18} />
+                  </button>
+                  <label className="row">
+                    <span className="row-label">
+                      Return to office too
+                      <span className="row-sub">For a there-and-back trip logged as one (×2)</span>
+                    </span>
+                    <span className="switch">
+                      <input type="checkbox" checked={roundTrip} onChange={(ev) => setRoundTrip(ev.target.checked)} />
+                      <span className="switch-track" />
+                    </span>
+                  </label>
+                  <label className="row-input">
+                    <span className="row-label">Claim (km)</span>
+                    <input
+                      inputMode="decimal"
+                      placeholder={fromOffice !== null ? fromOffice.toFixed(1) : (() => { const d = t ? tripKm(t) : fromOdo; return d !== null && d !== undefined ? String(d) : 'km'; })()}
+                      value={claimText}
+                      onChange={(ev) => setClaimText(ev.target.value)}
+                    />
+                  </label>
+                </div>
+                {picking ? (
+                  <PlacePicker
+                    near={office}
+                    placeholder="Search the client's building or area"
+                    shortcuts={[
+                      ...(t && t.end_lat !== null && t.end_lng !== null ? [{ label: 'Where this trip ended', place: { lat: t.end_lat, lng: t.end_lng } }] : []),
+                      ...(t && t.start_lat !== null && t.start_lng !== null ? [{ label: 'Where this trip started', place: { lat: t.start_lat, lng: t.start_lng } }] : []),
+                    ]}
+                    onPick={(p) => void measure(p)}
+                  />
+                ) : null}
+                {claimError ? (
+                  <div className="notice notice-error" role="alert">
+                    {claimError}
+                  </div>
+                ) : null}
+                <div className="group-footer">
+                  {office ? (
+                    <>
+                      Measured by road from {office.label} to the destination{roundTrip ? ' and back' : ', one way'}, wherever you actually set off.
+                      {claimTyped !== null ? ' Your typed km is used instead.' : ''}
+                      {!dest ? ' Without a destination, the km you drove is claimed.' : ''}
+                    </>
+                  ) : (
+                    <>
+                      The km you drove is claimed. <Link to="/settings/office">Set your office</Link> to claim office ↔ destination instead.
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
             <div className="group">
               <div className="group-header">Distance</div>
               <div className="group-body">
                 <label className="row-input">
-                  <span className="row-label">Distance (km)</span>
+                  <span className="row-label">Distance driven (km)</span>
                   <input inputMode="decimal" placeholder={fromOdo !== null ? String(fromOdo) : '0.0'} value={distance} onChange={(ev) => setDistance(ev.target.value)} />
                 </label>
                 <label className="row-input">
