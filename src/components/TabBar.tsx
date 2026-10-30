@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Icon } from './Icon';
 
-/** Floating glass capsule with the four main screens, plus a separate round "+" to log a cost. */
+/** Floating glass capsule with the four main screens. Costs are logged from "+ Log" on Garage. */
 export function TabBar() {
   const cls = ({ isActive }: { isActive: boolean }) => `tab ${isActive ? 'active' : ''}`;
   return (
@@ -24,9 +24,6 @@ export function TabBar() {
           <span>Settings</span>
         </NavLink>
       </div>
-      <NavLink to="/log" viewTransition className="tab-fab" aria-label="Log a cost">
-        <Icon name="plus" size={26} strokeWidth={2.4} />
-      </NavLink>
     </nav>
   );
 }
