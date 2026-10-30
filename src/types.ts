@@ -102,9 +102,41 @@ export interface Settings {
   tracking_from: string;
   claim_rate: number | null;
   shortcut_token: string | null;
-  office_label: string | null;
-  office_lat: number | null;
-  office_lng: number | null;
+  /** Name printed on the claim form. */
+  claim_name: string | null;
+}
+
+export type PlaceKind = 'office' | 'home' | 'client' | 'other';
+
+export interface Place {
+  id: string;
+  kind: PlaceKind;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  radius_m: number;
+  /** Road km from the office (clients). */
+  office_km: number | null;
+}
+
+export type PlaceInput = Omit<Place, 'id'>;
+
+export interface TripExtra {
+  id: string;
+  trip_id: string;
+  transaction_id: string;
+  kind: 'toll' | 'parking';
+  occurred_on: string;
+  description: string;
+  amount: number;
+}
+
+export interface UnclaimedToll {
+  transaction_id: string;
+  occurred_on: string;
+  description: string;
+  amount: number;
 }
 
 export interface Trip {
@@ -133,6 +165,9 @@ export interface Trip {
   /** What goes on the claim; null until worked out. */
   claim_km: number | null;
   claim_source: 'office' | 'manual' | null;
+  place_id: string | null;
+  /** Tagged Work because it started or ended at a saved client. */
+  auto_tagged: boolean;
 }
 
 export type TripInput = Omit<Trip, 'id' | 'source'>;

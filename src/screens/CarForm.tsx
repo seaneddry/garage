@@ -205,11 +205,11 @@ export function CarForm() {
           <div className="group-body">
             <label className="row-input">
               <span className="row-label">Make</span>
-              <input placeholder="e.g. MINI" value={make} onChange={(e) => setMake(e.target.value)} />
+              <input placeholder="e.g. Perodua" value={make} onChange={(e) => setMake(e.target.value)} />
             </label>
             <label className="row-input">
               <span className="row-label">Model</span>
-              <input placeholder="e.g. Cooper S Countryman" value={model} onChange={(e) => setModel(e.target.value)} />
+              <input placeholder="e.g. Myvi" value={model} onChange={(e) => setModel(e.target.value)} />
             </label>
             <label className="row-input">
               <span className="row-label">Variant</span>
@@ -217,7 +217,7 @@ export function CarForm() {
             </label>
             <label className="row-input">
               <span className="row-label">Year</span>
-              <input inputMode="numeric" placeholder="e.g. 2018" value={year} onChange={(e) => setYear(e.target.value)} />
+              <input inputMode="numeric" placeholder="e.g. 2021" value={year} onChange={(e) => setYear(e.target.value)} />
             </label>
             <label className="row-input">
               <span className="row-label">Plate</span>

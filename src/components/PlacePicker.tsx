@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './Icon';
 import { currentFix } from '../lib/geo';
-import { placeName, searchPlaces, type Place, type Pt } from '../lib/places';
+import { placeName, searchPlaces, type PlaceHit, type Pt } from '../lib/places';
 import { errorMessage } from '../lib/useQuery';
 
 interface Props {
   /** Rank results around this point (the office). */
   near?: Pt | null;
   /** Extra one-tap choices, e.g. the trip's start and end. */
-  shortcuts?: { label: string; sub?: string; place: Pt }[];
+  shortcuts?: { label: string; sub?: string; place: Pt; named?: boolean }[];
   placeholder?: string;
-  onPick: (p: Place) => void;
+  onPick: (p: PlaceHit) => void;
 }
 
 /** Search box with results, plus "Use my current location". */
 export function PlacePicker({ near = null, shortcuts = [], placeholder = 'Search a place or address', onPick }: Props) {
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<Place[] | null>(null);
+  const [results, setResults] = useState<PlaceHit[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +72,7 @@ export function PlacePicker({ near = null, shortcuts = [], placeholder = 'Search
               <span className="row-label">{busy === 'here' ? 'Getting location…' : 'Use my current location'}</span>
             </button>
             {shortcuts.map((s, i) => (
-              <button key={i} className="row" disabled={busy !== null} onClick={() => void pickPoint(`s${i}`, async () => s.place, s.label)}>
+              <button key={i} className="row" disabled={busy !== null} onClick={() => (s.named ? onPick({ ...s.place, label: s.label, address: s.sub ?? '' }) : void pickPoint(`s${i}`, async () => s.place, s.label))}>
                 <span className="row-icon">
                   <Icon name="car" size={18} />
                 </span>

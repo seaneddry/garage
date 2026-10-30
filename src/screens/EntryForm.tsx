@@ -465,7 +465,7 @@ export function EntryForm() {
                   <span className="row-label">{kind === 'fuel' ? 'Station' : 'Workshop'}</span>
                   <input
                     list="place-options"
-                    placeholder={kind === 'fuel' ? 'e.g. Petronas Rawang' : 'Name'}
+                    placeholder={kind === 'fuel' ? 'e.g. Petronas' : 'Name'}
                     value={place}
                     onChange={(e) => setPlace(e.target.value)}
                   />

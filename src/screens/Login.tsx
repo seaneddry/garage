@@ -30,7 +30,7 @@ export function Login() {
       <div className="login-brand">
         <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" />
         <h1>Garage</h1>
-        <p>Sign in with your Expense Tracker account.</p>
+        <p>Sign in to your account.</p>
       </div>
 
       <div className="group">

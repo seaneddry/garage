@@ -4,10 +4,12 @@ import { Screen } from '../components/Screen';
 import { ConfirmSheet } from '../components/ConfirmSheet';
 import { ErrorNotice, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { deleteTrip, getSettings, getTrip, listReadings, saveTrip } from '../api';
+import { addTripExtra, deleteTrip, getSettings, getTrip, linkTripExtra, listSavedPlaces, listReadings, listTripExtras, listUnclaimedTolls, saveTrip, unlinkTripExtra } from '../api';
 import { PlacePicker } from '../components/PlacePicker';
 import { Icon } from '../components/Icon';
-import { officeOf, placeName, roadKm, tripDestination, type Pt } from '../lib/places';
+import { guessExtraKind, officeOf, placeAt, placeName, roadKm, tripClaim, tripDestination, type Pt } from '../lib/places';
+import { parseAmount, rm } from '../lib/format';
+import { klDate } from '../lib/geo';
 import { tripKm } from '../lib/trips';
 import { latestReading } from '../lib/stats';
 import { errorMessage, useBump, useQuery } from '../lib/useQuery';
@@ -51,7 +53,17 @@ export function TripForm() {
   const [notes, setNotes] = useState('');
   // Work claim: office <-> destination
   const settings = useQuery(getSettings, []);
-  const office = officeOf(settings.data);
+  const places = useQuery(listSavedPlaces, []);
+  const office = officeOf(places.data);
+  const clients = (places.data ?? []).filter((p) => p.kind === 'client');
+  // Tolls & parking (saved straight away, on existing trips)
+  const extras = useQuery(() => (isNew ? Promise.resolve([]) : listTripExtras([id!])), [id]);
+  const tripDay = existing.data ? klDate(existing.data.started_at) : null;
+  const unclaimed = useQuery(() => (tripDay ? listUnclaimedTolls(tripDay, tripDay) : Promise.resolve([])), [tripDay]);
+  const [extraKind, setExtraKind] = useState<'toll' | 'parking'>('toll');
+  const [extraAmount, setExtraAmount] = useState('');
+  const [extraLabel, setExtraLabel] = useState('');
+  const [extraBusy, setExtraBusy] = useState(false);
   const [dest, setDest] = useState<(Pt & { label: string | null }) | null>(null);
   const [officeKm, setOfficeKm] = useState<number | null>(null);
   const [roundTrip, setRoundTrip] = useState(false);
@@ -88,6 +100,12 @@ export function TripForm() {
     setPicking(false);
     setClaimError(null);
     if (!office) return;
+    // A saved client already knows its distance from the office.
+    const saved = placeAt(clients, to, ['client']);
+    if (saved && saved.office_km !== null) {
+      setOfficeKm(saved.office_km);
+      return;
+    }
     setMeasuring(true);
     try {
       setOfficeKm(await roadKm(office, to));
@@ -158,6 +176,7 @@ export function TripForm() {
         claim_return: roundTrip,
         claim_km: claimTyped ?? (dest ? fromOffice : null),
         claim_source: claimTyped !== null ? 'manual' : dest && fromOffice !== null ? 'office' : null,
+        place_id: dest ? placeAt(clients, dest, ['client'])?.id ?? null : null,
       });
       bump();
       toast('Saved');
@@ -183,8 +202,36 @@ export function TripForm() {
     }
   }
 
+  async function extraAction(fn: () => Promise<void>, msg: string) {
+    setExtraBusy(true);
+    try {
+      await fn();
+      extras.reload();
+      unclaimed.reload();
+      bump();
+      toast(msg);
+    } catch (err) {
+      toast(errorMessage(err));
+    } finally {
+      setExtraBusy(false);
+    }
+  }
+
+  function addExtra() {
+    const amt = parseAmount(extraAmount);
+    if (amt === null || amt <= 0 || isNew) return;
+    void extraAction(async () => {
+      await addTripExtra(id!, extraKind, amt, extraLabel.trim() || null);
+      setExtraAmount('');
+      setExtraLabel('');
+    }, extraKind === 'toll' ? 'Toll added' : 'Parking added');
+  }
+
   const t = existing.data;
   const waiting = !isNew && !t && !existing.error;
+  const rate = settings.data?.claim_rate ?? null;
+  const claimNowKm = claimTyped ?? (dest ? fromOffice : null) ?? (t ? tripKm(t) : fromOdo) ?? 0;
+  const claim = t ? tripClaim({ ...t, purpose: 'work', claim_km: claimNowKm }, extras.data ?? [], rate) : null;
 
   return (
     <Screen
@@ -207,6 +254,17 @@ export function TripForm() {
         {waiting ? <Loading /> : null}
         {!waiting ? (
           <>
+            {t?.auto_tagged && t.purpose === 'work' && purpose === 'work' ? (
+              <div className="notice notice-auto">
+                <Icon name="check" size={20} />
+                <span>
+                  Tagged <strong>Work</strong> automatically: this trip started or ended at <strong>{t.client ?? t.dest_label ?? 'a saved client'}</strong>.
+                  <button className="link-button" onClick={() => setPurpose('private')}>
+                    Not a work trip
+                  </button>
+                </span>
+              </div>
+            ) : null}
             <div className="segmented segmented-2" role="group" aria-label="Purpose">
               <button aria-pressed={purpose === 'private'} onClick={() => setPurpose('private')}>
                 Private
@@ -221,7 +279,7 @@ export function TripForm() {
                 {purpose === 'work' ? (
                   <label className="row-input">
                     <span className="row-label">Client / category</span>
-                    <input placeholder="e.g. Sime Darby, site visit" value={client} onChange={(ev) => setClient(ev.target.value)} />
+                    <input placeholder="e.g. Client meeting" value={client} onChange={(ev) => setClient(ev.target.value)} />
                   </label>
                 ) : null}
                 <label className="row-input">
@@ -272,6 +330,12 @@ export function TripForm() {
                     near={office}
                     placeholder="Search the client's building or area"
                     shortcuts={[
+                      ...clients.map((c) => ({
+                        label: c.name,
+                        sub: c.office_km !== null ? `Saved client · ${c.office_km.toFixed(1)} km from office` : 'Saved client',
+                        place: { lat: c.lat, lng: c.lng },
+                        named: true,
+                      })),
                       ...(t && t.end_lat !== null && t.end_lng !== null ? [{ label: 'Where this trip ended', place: { lat: t.end_lat, lng: t.end_lng } }] : []),
                       ...(t && t.start_lat !== null && t.start_lng !== null ? [{ label: 'Where this trip started', place: { lat: t.start_lat, lng: t.start_lng } }] : []),
                     ]}
@@ -296,6 +360,95 @@ export function TripForm() {
                     </>
                   )}
                 </div>
+              </div>
+            ) : null}
+
+            {purpose === 'work' ? (
+              <div className="group">
+                <div className="group-header">Tolls &amp; parking</div>
+                {isNew ? (
+                  <div className="group-footer">Save the trip first, then add its tolls and parking.</div>
+                ) : (
+                  <>
+                    <div className="group-body">
+                      {(extras.data ?? []).map((x) => (
+                        <div className="row" key={x.id}>
+                          <span className="row-icon extra-icon">{x.kind === 'toll' ? 'T' : 'P'}</span>
+                          <span className="row-label">
+                            {x.description}
+                            <span className="row-sub">{x.kind === 'toll' ? 'Toll' : 'Parking'}</span>
+                          </span>
+                          <span className="row-value row-value-strong num">{rm(x.amount)}</span>
+                          <button
+                            className="icon-button"
+                            aria-label={`Remove ${x.description} from this trip`}
+                            disabled={extraBusy}
+                            onClick={() => void extraAction(() => unlinkTripExtra(x.id), 'Removed from this trip')}
+                          >
+                            <Icon name="x" size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      {(unclaimed.data ?? []).map((u) => (
+                        <div className="row row-suggest" key={u.transaction_id}>
+                          <span className="row-icon extra-icon">+</span>
+                          <span className="row-label">
+                            {u.description}
+                            <span className="row-sub">From your expenses that day</span>
+                          </span>
+                          <span className="row-value num">{rm(u.amount)}</span>
+                          <button
+                            className="button button-secondary button-small"
+                            disabled={extraBusy}
+                            onClick={() => void extraAction(() => linkTripExtra(id!, u.transaction_id, guessExtraKind(u.description)), 'Added to this trip')}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                      <div className="extra-add">
+                        <div className="segmented segmented-2 segmented-small" role="group" aria-label="Toll or parking">
+                          <button aria-pressed={extraKind === 'toll'} onClick={() => setExtraKind('toll')}>
+                            Toll
+                          </button>
+                          <button aria-pressed={extraKind === 'parking'} onClick={() => setExtraKind('parking')}>
+                            Parking
+                          </button>
+                        </div>
+                        <input
+                          className="extra-input"
+                          placeholder={extraKind === 'toll' ? 'e.g. PLUS Sg Buloh' : 'e.g. Mall parking'}
+                          value={extraLabel}
+                          onChange={(ev) => setExtraLabel(ev.target.value)}
+                        />
+                        <input className="extra-input extra-amount" inputMode="decimal" placeholder="RM" value={extraAmount} onChange={(ev) => setExtraAmount(ev.target.value)} />
+                        <button className="button button-primary button-small" disabled={extraBusy || !(parseAmount(extraAmount) ?? 0)} onClick={addExtra}>
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                    <div className="group-footer">Each one is an expense under "Parking &amp; Tolls" in your Expense Tracker. Removing it here keeps the expense.</div>
+                  </>
+                )}
+              </div>
+            ) : null}
+
+            {purpose === 'work' && claim && rate !== null ? (
+              <div className="claim-card">
+                <span className="claim-card-label">This trip claims</span>
+                <span className="claim-card-total num">{rm(claim.total)}</span>
+                <span className="claim-card-line">
+                  <span>
+                    Mileage {claim.km.toFixed(1)} km × {rm(rate)}
+                  </span>
+                  <span className="num">{rm(claim.mileage)}</span>
+                </span>
+                {claim.tolls + claim.parking > 0 ? (
+                  <span className="claim-card-line">
+                    <span>Tolls &amp; parking</span>
+                    <span className="num">{rm(claim.tolls + claim.parking)}</span>
+                  </span>
+                ) : null}
               </div>
             ) : null}
 

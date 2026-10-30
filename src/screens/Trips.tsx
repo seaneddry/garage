@@ -4,7 +4,7 @@ import { Screen } from '../components/Screen';
 import { Icon } from '../components/Icon';
 import { Empty, ErrorNotice, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { getSettings, listReadings, listTrips, saveTrip } from '../api';
+import { getSettings, listSavedPlaces, listReadings, listTripExtras, listTrips, saveTrip } from '../api';
 import { errorMessage, useBump, useQuery } from '../lib/useQuery';
 import { useVehicle } from '../lib/vehicle';
 import { addMonths, monthLabel, monthStart, rm, todayKL } from '../lib/format';
@@ -12,7 +12,7 @@ import { latestReading, monthPeriod } from '../lib/stats';
 import { currentFix, klDate, minutesBetween, timeLabel, watchDistance } from '../lib/geo';
 import { shareOrDownload, toCsv } from '../lib/csv';
 import { tripKm } from '../lib/trips';
-import { claimKm, officeClaim, officeOf, tripDestination } from '../lib/places';
+import { claimKm, officeClaim, officeOf, tripClaim, tripDestination } from '../lib/places';
 import type { Trip } from '../types';
 
 const LIVE_KEY = 'garage.liveTrip';
@@ -50,6 +50,7 @@ export function Trips() {
   const vid = vehicle?.id ?? '';
   const trips = useQuery(() => (vid ? listTrips(vid) : Promise.resolve([] as Trip[])), [vid]);
   const settings = useQuery(getSettings, []);
+  const places = useQuery(listSavedPlaces, []);
   const readings = useQuery(() => (vid ? listReadings(vid) : Promise.resolve([])), [vid]);
   const [month, setMonth] = useState(monthStart(todayKL()));
 
@@ -148,7 +149,7 @@ export function Trips() {
   const workKm = work.reduce((s, t) => s + (claimKm(t) ?? 0), 0);
   const rate = settings.data?.claim_rate ?? null;
   const missingKm = work.filter((t) => claimKm(t) === null).length;
-  const office = officeOf(settings.data);
+  const office = officeOf(places.data);
   // Work trips whose claim can be measured from the office but hasn't been yet.
   const toMeasure = office ? work.filter((t) => t.claim_km === null && tripDestination(t, office)) : [];
   const [measuring, setMeasuring] = useState(false);
@@ -173,14 +174,20 @@ export function Trips() {
     }
   }
   const atEnd = month >= monthStart(todayKL());
+  const workIds = work.map((t) => t.id).join(',');
+  const extras = useQuery(() => listTripExtras(workIds ? workIds.split(',') : []), [workIds]);
+  const claims = work.map((t) => tripClaim(t, extras.data ?? [], rate));
+  const sum = (k: 'mileage' | 'tolls' | 'parking' | 'total') => claims.reduce((s, c) => s + c[k], 0);
+  const extrasOf = (id: string) => (extras.data ?? []).filter((x) => x.trip_id === id);
 
   async function exportMonth() {
     const rows: (string | number | null)[][] = [
-      ['Date', 'Start', 'End', 'Minutes', 'Distance driven (km)', 'Distance from', 'Purpose', 'Client / category', 'Destination', 'Claim (km)', 'Claim measured', 'Start odometer', 'End odometer', `Claim (RM${rate !== null ? ` @ ${rate}/km` : ''})`, 'Notes'],
+      ['Date', 'Start', 'End', 'Minutes', 'Distance driven (km)', 'Distance from', 'Purpose', 'Client / category', 'Destination', 'Claim (km)', 'Claim measured', 'Start odometer', 'End odometer', `Mileage (RM${rate !== null ? ` @ ${rate}/km` : ''})`, 'Tolls (RM)', 'Parking (RM)', 'Claim total (RM)', 'Notes'],
     ];
     for (const t of [...inMonth].reverse()) {
       const d = tripKm(t);
       const c = claimKm(t);
+      const cl = t.purpose === 'work' ? tripClaim(t, extras.data ?? [], rate) : null;
       rows.push([
         klDate(t.started_at),
         timeLabel(t.started_at),
@@ -195,12 +202,15 @@ export function Trips() {
         t.purpose !== 'work' ? '' : t.claim_source === 'office' ? `from ${office?.label ?? 'office'}${t.claim_return ? ', return' : ', one way'}` : t.claim_source === 'manual' ? 'by hand' : 'distance driven',
         t.start_odo,
         t.end_odo,
-        t.purpose === 'work' && rate !== null && c !== null ? (c * rate).toFixed(2) : '',
+        cl && rate !== null ? cl.mileage.toFixed(2) : '',
+        cl && cl.tolls ? cl.tolls.toFixed(2) : '',
+        cl && cl.parking ? cl.parking.toFixed(2) : '',
+        cl ? cl.total.toFixed(2) : '',
         t.notes,
       ]);
     }
     rows.push([]);
-    rows.push(['Work total', '', '', '', '', '', '', '', '', workKm.toFixed(1), '', '', '', rate !== null ? (workKm * rate).toFixed(2) : '', '']);
+    rows.push(['Work total', '', '', '', '', '', '', '', '', workKm.toFixed(1), '', '', '', sum('mileage').toFixed(2), sum('tolls').toFixed(2), sum('parking').toFixed(2), sum('total').toFixed(2), '']);
     await shareOrDownload(`trips-${month.slice(0, 7)}.csv`, toCsv(rows));
   }
 
@@ -275,13 +285,31 @@ export function Trips() {
             <div className="kpi-label">Work</div>
             <div className="kpi-value num">{workKm.toFixed(0)} km</div>
             <div className="kpi-note">
-              {rate !== null ? `claim ${rm(workKm * rate)}` : <Link to="/settings">set claim rate</Link>}
+              {work.length} trip{work.length === 1 ? '' : 's'}
             </div>
           </div>
         </div>
+        {work.length > 0 ? (
+          <section className="claim-card">
+            <span className="claim-card-label">{monthLabel(month)} claim</span>
+            <span className="claim-card-total num">{rm(sum('total'))}</span>
+            <span className="claim-card-line">
+              <span>{rate !== null ? `Mileage · ${workKm.toFixed(1)} km × ${rm(rate)}` : <Link to="/settings">Set your claim rate</Link>}</span>
+              <span className="num">{rm(sum('mileage'))}</span>
+            </span>
+            <span className="claim-card-line">
+              <span>Tolls</span>
+              <span className="num">{rm(sum('tolls'))}</span>
+            </span>
+            <span className="claim-card-line">
+              <span>Parking</span>
+              <span className="num">{rm(sum('parking'))}</span>
+            </span>
+          </section>
+        ) : null}
         {work.length > 0 && !office ? (
           <div className="notice">
-            Work trips claim the km you drove. <Link to="/settings/office">Set your office</Link> to claim office ↔ destination instead.
+            Work trips claim the km you drove. <Link to="/settings/places">Set your office</Link> to claim office ↔ destination instead.
           </div>
         ) : null}
         {toMeasure.length > 0 ? (
@@ -306,6 +334,7 @@ export function Trips() {
             <div className="group-body">
               {inMonth.map((t) => {
                 const d = t.purpose === 'work' ? claimKm(t) : tripKm(t);
+                const ex = t.purpose === 'work' ? extrasOf(t.id).length : 0;
                 const mins = minutesBetween(t.started_at, t.ended_at);
                 return (
                   <Link to={`/trips/${t.id}`} className="tx-row" key={t.id}>
@@ -318,6 +347,7 @@ export function Trips() {
                         {[
                           t.purpose === 'work' && t.dest_label ? `→ ${t.dest_label}` : null,
                           t.ended_at ? (mins !== null ? `${mins} min` : null) : 'in progress',
+                          ex ? `${ex} toll${ex === 1 ? '' : 's'}/parking` : null,
                           t.source === 'shortcut' ? 'CarPlay' : t.distance_source === 'gps' ? 'GPS' : null]
                           .filter(Boolean)
                           .join(' · ')}
@@ -334,9 +364,14 @@ export function Trips() {
           </section>
         ) : null}
 
+        {work.length > 0 ? (
+          <Link to={`/trips/claim/${month.slice(0, 7)}`} className="button button-primary button-block">
+            {monthLabel(month)} claim form (PDF)
+          </Link>
+        ) : null}
         {inMonth.length > 0 ? (
           <button className="button button-secondary button-block" onClick={() => void exportMonth()}>
-            Export {monthLabel(month)} claim report (CSV)
+            Export {monthLabel(month)} trips (CSV)
           </button>
         ) : null}
       </main>

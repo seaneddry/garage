@@ -19,7 +19,9 @@ import { Fuel } from './screens/Fuel';
 import { Trips } from './screens/Trips';
 import { TripForm } from './screens/TripForm';
 import { Parking } from './screens/Parking';
-import { Office } from './screens/Office';
+import { Places } from './screens/Places';
+import { PlaceForm } from './screens/PlaceForm';
+import { ClaimForm } from './screens/ClaimForm';
 import { Shortcuts } from './screens/Shortcuts';
 import { Report } from './screens/Report';
 import { Parts } from './screens/Parts';
@@ -77,7 +79,10 @@ const router = createBrowserRouter(
         { path: '/book', element: <Book /> },
         { path: '/settings/notifications', element: <Notifications /> },
         { path: '/settings/shortcuts', element: <Shortcuts /> },
-        { path: '/settings/office', element: <Office /> },
+        { path: '/settings/office', element: <Navigate to="/settings/places" replace /> },
+        { path: '/settings/places', element: <Places /> },
+        { path: '/settings/places/:id', element: <PlaceForm /> },
+        { path: '/trips/claim/:month', element: <ClaimForm /> },
         { path: '/fuel', element: <Fuel /> },
         { path: '/trips', element: <Trips /> },
         { path: '/trips/:id', element: <TripForm /> },

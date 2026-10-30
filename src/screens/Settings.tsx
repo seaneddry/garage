@@ -4,7 +4,7 @@ import { Screen } from '../components/Screen';
 import { Icon } from '../components/Icon';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth';
-import { getSettings, listCosts, listTrips, saveSettings } from '../api';
+import { getSettings, listCosts, listSavedPlaces, listTrips, saveSettings } from '../api';
 import { errorMessage, useBump, useQuery } from '../lib/useQuery';
 import { useVehicle } from '../lib/vehicle';
 import { parseAmount, todayKL } from '../lib/format';
@@ -25,12 +25,16 @@ export function Settings() {
   const [from, setFrom] = useState('');
   const [rate, setRate] = useState('');
   const [exporting, setExporting] = useState(false);
-  const office = officeOf(settings.data);
+  const places = useQuery(listSavedPlaces, []);
+  const office = officeOf(places.data);
+  const clientCount = (places.data ?? []).filter((p) => p.kind === 'client').length;
+  const [claimName, setClaimName] = useState('');
 
   useEffect(() => {
     if (settings.data) {
       setFrom(settings.data.tracking_from);
       setRate(settings.data.claim_rate !== null ? String(settings.data.claim_rate) : '');
+      setClaimName(settings.data.claim_name ?? '');
     }
   }, [settings.data]);
 
@@ -42,6 +46,18 @@ export function Settings() {
       await saveSettings({ claim_rate: n });
       bump();
       toast('Claim rate saved');
+    } catch (e) {
+      toast(errorMessage(e));
+    }
+  }
+
+  async function saveClaimName() {
+    const v = claimName.trim() || null;
+    if (v === (settings.data?.claim_name ?? null)) return;
+    try {
+      await saveSettings({ claim_name: v });
+      bump();
+      toast('Saved');
     } catch (e) {
       toast(errorMessage(e));
     }
@@ -196,19 +212,25 @@ export function Settings() {
         <section className="group">
           <div className="group-header">Trips</div>
           <div className="group-body">
-            <Link to="/settings/office" className="row">
+            <Link to="/settings/places" className="row">
               <span className="row-icon">
                 <Icon name="flag" size={20} />
               </span>
               <span className="row-label">
-                Office
-                <span className="row-sub">{office ? office.label : 'Not set: work trips claim the km you drove'}</span>
+                Places
+                <span className="row-sub">
+                  {office ? `${office.label}${clientCount ? ` · ${clientCount} client${clientCount === 1 ? '' : 's'}` : ''}` : 'Set your office and clients'}
+                </span>
               </span>
               <Icon name="chevron-right" size={18} />
             </Link>
             <label className="row-input">
               <span className="row-label">Claim rate (RM per km)</span>
               <input inputMode="decimal" placeholder="e.g. 0.60" value={rate} onChange={(e) => setRate(e.target.value)} onBlur={() => void saveRate()} />
+            </label>
+            <label className="row-input">
+              <span className="row-label">Name on claim form</span>
+              <input placeholder="Your name" value={claimName} onChange={(e) => setClaimName(e.target.value)} onBlur={() => void saveClaimName()} />
             </label>
           </div>
           <div className="group-footer">Work trips claim the road distance between your office and where you went, at your employer's rate.</div>

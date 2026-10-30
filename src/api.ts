@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Cost, EntryInput, EntryItem, ExpenseDue, Parking, PartLine, Reading, Reminder, ReminderInput, Settings, Trip, TripInput, Vehicle, VehicleInput, Workshop, WorkshopInput } from './types';
+import type { Cost, EntryInput, EntryItem, ExpenseDue, Parking, PartLine, Place, PlaceInput, Reading, Reminder, ReminderInput, Settings, Trip, TripExtra, TripInput, UnclaimedToll, Vehicle, VehicleInput, Workshop, WorkshopInput } from './types';
 
 function fail(error: { message: string } | null): never | void {
   if (error) throw new Error(error.message);
@@ -240,7 +240,7 @@ export async function listExpenseDues(): Promise<ExpenseDue[]> {
 
 // ----------------------------------------------------------------- settings
 export async function getSettings(): Promise<Settings | null> {
-  const { data, error } = await supabase.from('garage_settings').select('tracking_from,claim_rate,shortcut_token,office_label,office_lat,office_lng').maybeSingle();
+  const { data, error } = await supabase.from('garage_settings').select('tracking_from,claim_rate,shortcut_token,claim_name').maybeSingle();
   fail(error);
   return data ? ({ ...data, claim_rate: num(data.claim_rate) } as Settings) : null;
 }
@@ -293,7 +293,7 @@ export async function deleteWorkshop(id: string): Promise<void> {
 
 // -------------------------------------------------------------------- trips
 const TRIP_COLS =
-  'id,vehicle_id,started_at,ended_at,start_odo,end_odo,distance_km,distance_source,purpose,client,notes,start_lat,start_lng,end_lat,end_lng,source,dest_label,dest_lat,dest_lng,office_km,claim_return,claim_km,claim_source';
+  'id,vehicle_id,started_at,ended_at,start_odo,end_odo,distance_km,distance_source,purpose,client,notes,start_lat,start_lng,end_lat,end_lng,source,dest_label,dest_lat,dest_lng,office_km,claim_return,claim_km,claim_source,place_id,auto_tagged';
 
 function toTrip(r: Record<string, unknown>): Trip {
   return { ...(r as unknown as Trip), distance_km: num(r.distance_km), office_km: num(r.office_km), claim_km: num(r.claim_km) };
@@ -325,6 +325,86 @@ export async function saveTrip(id: string | null, input: Partial<TripInput>): Pr
   const { data, error } = await supabase.from('garage_trips').insert({ ...input, source: 'app' }).select('id').single();
   fail(error);
   return data!.id as string;
+}
+
+// ------------------------------------------------------------------- places
+const PLACE_COLS = 'id,kind,name,address,lat,lng,radius_m,office_km';
+
+function toPlace(r: Record<string, unknown>): Place {
+  return { ...(r as unknown as Place), office_km: num(r.office_km) };
+}
+
+export async function listSavedPlaces(): Promise<Place[]> {
+  const { data, error } = await supabase.from('garage_places').select(PLACE_COLS).order('name');
+  fail(error);
+  return (data ?? []).map(toPlace);
+}
+
+export async function savePlace(id: string | null, input: Partial<PlaceInput>): Promise<string> {
+  if (id) {
+    const { error } = await supabase.from('garage_places').update(input).eq('id', id);
+    fail(error);
+    return id;
+  }
+  const { data, error } = await supabase.from('garage_places').insert(input).select('id').single();
+  fail(error);
+  return data!.id as string;
+}
+
+export async function deletePlace(id: string): Promise<void> {
+  const { error } = await supabase.from('garage_places').delete().eq('id', id);
+  fail(error);
+}
+
+/** Past Private trips at a client: how many, or tag them as Work (apply). */
+export async function tagTripsAtPlace(placeId: string, apply: boolean): Promise<number> {
+  const { data, error } = await supabase.rpc('garage_tag_trips_at_place', { p_place: placeId, p_apply: apply });
+  fail(error);
+  return Number(data ?? 0);
+}
+
+// ---------------------------------------------------------- tolls & parking
+const EXTRA_COLS = 'id,trip_id,transaction_id,kind,occurred_on,description,amount';
+
+export async function listTripExtras(tripIds?: string[]): Promise<TripExtra[]> {
+  let q = supabase.from('garage_trip_extras_v').select(EXTRA_COLS);
+  if (tripIds) {
+    if (!tripIds.length) return [];
+    q = q.in('trip_id', tripIds);
+  }
+  const { data, error } = await q.order('occurred_on').limit(5000);
+  fail(error);
+  return (data ?? []).map((r) => ({ ...(r as unknown as TripExtra), amount: Number(r.amount) }));
+}
+
+/** Toll and parking expenses not on any trip yet, between two dates (inclusive). */
+export async function listUnclaimedTolls(from: string, to: string): Promise<UnclaimedToll[]> {
+  const { data, error } = await supabase
+    .from('garage_unclaimed_tolls')
+    .select('transaction_id,occurred_on,description,amount')
+    .gte('occurred_on', from)
+    .lte('occurred_on', to)
+    .order('occurred_on');
+  fail(error);
+  return (data ?? []).map((r) => ({ ...(r as unknown as UnclaimedToll), amount: Number(r.amount) }));
+}
+
+/** A new toll or parking expense ("Parking & Tolls" in the Expense Tracker), on this trip. */
+export async function addTripExtra(tripId: string, kind: 'toll' | 'parking', amount: number, label: string | null): Promise<void> {
+  const { error } = await supabase.rpc('garage_add_trip_extra', { p_trip: tripId, p_kind: kind, p_amount: amount, p_label: label });
+  fail(error);
+}
+
+/** An existing toll or parking expense, claimed with this trip. */
+export async function linkTripExtra(tripId: string, transactionId: string, kind: 'toll' | 'parking'): Promise<void> {
+  const { error } = await supabase.from('garage_trip_extras').insert({ trip_id: tripId, transaction_id: transactionId, kind });
+  fail(error);
+}
+
+/** Off this trip's claim; the expense itself stays. */
+export async function unlinkTripExtra(id: string): Promise<void> {
+  const { error } = await supabase.from('garage_trip_extras').delete().eq('id', id);
+  fail(error);
 }
 
 export async function deleteTrip(id: string): Promise<void> {

@@ -440,3 +440,148 @@ button.action-chip {
   text-align: right;
   font-weight: 400;
 }
+
+/* ------------------------------------------------ claims, tolls & places */
+.claim-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 26px;
+  background: var(--tint);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-hi), var(--glass-shadow);
+}
+.claim-card-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.claim-card-total {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.claim-card-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.extra-icon {
+  font-size: 12px;
+  font-weight: 700;
+}
+.row-suggest .row-label {
+  color: var(--ink-2);
+}
+.extra-add {
+  display: grid;
+  grid-template-columns: 1fr 84px;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 0.5px solid var(--separator);
+}
+.extra-add .segmented {
+  grid-column: 1 / -1;
+}
+.extra-input {
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--fill);
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+}
+.extra-add .button {
+  grid-column: 1 / -1;
+}
+.notice-auto {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.notice-auto .link-button {
+  display: block;
+  margin-top: 6px;
+}
+.suggest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-hi), var(--glass-shadow);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.suggest-actions {
+  display: flex;
+  gap: 8px;
+}
+.row-strong {
+  font-weight: 600;
+}
+.segmented-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.claim-head-right {
+  text-align: right;
+}
+.claim-total-row td {
+  border-top: 2px solid #111111;
+}
+.claim-sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 48px;
+  font-size: 12px;
+  color: #555555;
+}
+.claim-sign span {
+  display: block;
+  height: 36px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #111111;
+}
+.claim-scroll {
+  overflow-x: auto;
+}
+.claim-table .claim-date {
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .claim-table {
+    font-size: 12px;
+  }
+  .claim-table th {
+    padding: 6px 4px;
+    font-size: 9.5px;
+    letter-spacing: 0.02em;
+  }
+  .claim-table td {
+    padding: 8px 4px;
+  }
+  .claim-table .report-sub {
+    font-size: 11px;
+  }
+  /* Tolls and parking are listed under each trip; the print keeps the columns. */
+  .claim-table .wide-only {
+    display: none;
+  }
+}
+@media print {
+  .claim-table .wide-only {
+    display: table-cell;
+  }
+}
