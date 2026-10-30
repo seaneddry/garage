@@ -8,6 +8,7 @@ import { DataProvider } from './lib/useQuery';
 import './styles.css';
 import './garage.css';
 import './garage-more.css';
+import './glass.css';
 
 registerSW({ immediate: true });
 

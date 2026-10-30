@@ -1,0 +1,303 @@
+/* =============================================================================
+   Garage theme: Liquid Glass, "Graphite & champagne".
+   Loaded last, so it only re-skins the shared styles: tokens, a fixed warm glow
+   behind everything, frosted-glass cards, floating glass bars and champagne accents.
+   Real blur (backdrop-filter) is used only on things that float over content
+   (navbar, tab bar, sheets, toast, save bar); cards sit on a smooth gradient, where
+   blur would cost battery and add nothing, so they use translucency + highlights.
+   ============================================================================= */
+
+:root {
+  --bg: #f4efe7;
+  --surface: rgb(255 255 255 / 0.58);
+  --surface-2: rgb(255 255 255 / 0.78);
+  --fill: rgb(70 52 28 / 0.07);
+  --ink: #17140f;
+  --ink-2: rgb(23 20 15 / 0.62);
+  --ink-3: rgb(23 20 15 / 0.36);
+  --separator: rgb(70 52 28 / 0.12);
+  --accent: #1c1813;
+  --accent-fg: #f6f0e4;
+  --bar-bg: rgb(250 246 239 / 0.62);
+  --shadow-lg: 0 18px 50px rgb(80 60 30 / 0.18);
+
+  --gold: #b48a52;
+  --gold-bar: linear-gradient(90deg, #c9a46c, #a7804a);
+  --glass-edge: rgb(255 255 255 / 0.85);
+  --glass-hi: inset 0 1px 0 rgb(255 255 255 / 0.95);
+  --glass-shadow: 0 8px 26px rgb(80 60 30 / 0.08);
+  --glass-strong: rgb(255 252 246 / 0.72);
+  --glow:
+    radial-gradient(110% 55% at 82% 8%, rgb(214 178 120 / 0.42) 0%, rgb(214 178 120 / 0) 62%),
+    radial-gradient(90% 60% at 0% 40%, rgb(190 140 92 / 0.20) 0%, rgb(190 140 92 / 0) 64%),
+    radial-gradient(80% 45% at 60% 100%, rgb(150 160 176 / 0.16) 0%, rgb(150 160 176 / 0) 60%);
+  --tabbar-h: 84px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0b0a;
+    --surface: rgb(255 255 255 / 0.07);
+    --surface-2: rgb(255 255 255 / 0.12);
+    --fill: rgb(255 255 255 / 0.09);
+    --ink: #f6f2ea;
+    --ink-2: rgb(246 242 234 / 0.62);
+    --ink-3: rgb(246 242 234 / 0.36);
+    --separator: rgb(255 255 255 / 0.10);
+    --accent: #e7d3ab;
+    --accent-fg: #17140f;
+    --bar-bg: rgb(22 20 18 / 0.72);
+    --shadow-lg: 0 18px 50px rgb(0 0 0 / 0.55);
+
+    --gold: #e7d3ab;
+    --gold-bar: linear-gradient(90deg, #f3e3c4, #d9bd8c);
+    --glass-edge: rgb(255 255 255 / 0.13);
+    --glass-hi: inset 0 1px 0 rgb(255 255 255 / 0.22);
+    --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.30);
+    --glass-strong: rgb(30 27 24 / 0.68);
+    --glow:
+      radial-gradient(110% 55% at 82% 8%, rgb(222 190 140 / 0.30) 0%, rgb(222 190 140 / 0) 62%),
+      radial-gradient(90% 60% at 0% 42%, rgb(140 98 60 / 0.30) 0%, rgb(140 98 60 / 0) 64%),
+      radial-gradient(80% 45% at 60% 100%, rgb(170 176 186 / 0.12) 0%, rgb(170 176 186 / 0) 60%);
+  }
+  .toast {
+    background: rgb(40 36 32 / 0.75) !important;
+  }
+}
+
+/* ------------------------------------------------------- background glow */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--glow), var(--bg);
+  pointer-events: none;
+}
+body {
+  background: transparent;
+}
+
+/* --------------------------------------------------------- glass panels */
+.group-body,
+.kpi,
+.hero,
+.car-card,
+.trend,
+.notice:not(.notice-error):not(.notice-warn):not(.notice-good),
+.amount-field,
+.live-trip,
+.parking-card,
+.receipt-card,
+.howto,
+.photo-edit,
+.quick-link:not(.is-active),
+.scan-button,
+.round-button,
+.pill:not(.pill-on),
+.search-field,
+.total-card,
+.empty-icon {
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-hi), var(--glass-shadow);
+}
+.group-body,
+.kpi,
+.trend,
+.live-trip,
+.parking-card,
+.howto,
+.quick-link {
+  border-radius: 22px;
+}
+.car-card {
+  border-radius: 28px;
+}
+.kpi {
+  padding: 14px;
+}
+
+/* Rows sit inside a glass panel: no second layer of tint. */
+.row,
+.row-input,
+.tx-row,
+.reminder-row,
+.workshop-row,
+.copy-row,
+.part-lines,
+.parking-card .row-input {
+  background: transparent;
+}
+.tx-row:active,
+.reminder-row:active {
+  background: var(--fill);
+}
+.parking-card .group-body,
+.car-pill,
+.car-next-set {
+  background: var(--fill);
+}
+.car-pill {
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-hi);
+}
+.car-next {
+  border-top-color: var(--separator);
+}
+
+/* Champagne accents */
+.bar > span {
+  background: var(--gold-bar);
+}
+.bar > span.is-warn {
+  background: var(--warn);
+}
+.bar > span.is-over {
+  background: var(--danger);
+}
+.gauge-fill {
+  stroke: var(--gold);
+}
+.car-plate,
+.total-label {
+  color: var(--gold);
+  opacity: 1;
+}
+.total-card {
+  background: linear-gradient(135deg, rgb(214 178 120 / 0.26), rgb(214 178 120 / 0.08));
+  color: var(--ink);
+}
+.total-sub {
+  color: var(--ink-2);
+  opacity: 1;
+}
+.delta-chip {
+  background: var(--fill);
+  color: var(--ink) !important;
+}
+.trend-bar.is-now {
+  background: var(--gold-bar);
+}
+.segmented {
+  border-radius: 14px;
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--surface-2);
+  border-radius: 11px;
+  box-shadow: var(--glass-hi), 0 2px 8px rgb(0 0 0 / 0.12);
+}
+.car-photo {
+  filter: drop-shadow(0 18px 20px rgb(0 0 0 / 0.35));
+}
+
+/* ------------------------------------------------- floating glass bars */
+.navbar.is-solid {
+  background: var(--bar-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 0.5px 0 var(--separator);
+}
+
+.tabbar {
+  left: 14px;
+  right: 14px;
+  bottom: calc(var(--safe-bottom) + 10px);
+  height: 64px;
+  padding: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  max-width: 560px;
+  margin: 0 auto;
+  /* A view-transition name makes an element a "backdrop root", which would stop the
+     glass inside it from blurring the page. Name the capsule instead. */
+  view-transition-name: none;
+}
+.tab-capsule,
+.tab-fab {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-hi), var(--shadow-lg);
+}
+.tab-capsule {
+  view-transition-name: tabbar;
+  flex: 1;
+  height: 64px;
+  border-radius: 32px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  padding: 0 6px;
+}
+.tab {
+  height: 52px;
+  border-radius: 26px;
+  color: var(--ink-2);
+  font-size: 10px;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+.tab.active {
+  color: var(--ink);
+  background: var(--fill);
+  box-shadow: var(--glass-hi);
+}
+.tab-fab {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  transition: transform 160ms var(--ease);
+}
+.tab-fab:active {
+  transform: scale(0.92);
+}
+
+.sticky-save {
+  background: var(--bar-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+.action-group,
+.action-cancel {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  backdrop-filter: blur(30px) saturate(190%);
+  border: 1px solid var(--glass-edge);
+  border-radius: 20px;
+}
+.toast {
+  border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* Bigger rounded buttons, like the mockup */
+.button {
+  border-radius: 28px;
+}
+.button-small {
+  border-radius: 18px;
+}
+.button-secondary,
+.button-danger {
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-hi);
+}
+
+@media print {
+  body::before {
+    display: none;
+  }
+  body {
+    background: #ffffff;
+  }
+}
